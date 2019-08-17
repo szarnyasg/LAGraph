@@ -60,14 +60,16 @@
 // experiments, the algorithm is modified to guarantee deterministic behavior:
 // it always picks the smallest label in case of a tie:
 //
-// min ( argmax_{l} (# of neighbors with label l) )
+// min ( argmax_{l} (#neighbors with label l) )
 //
 // In other words, we need to compute the *minimum mode value* (minmode) for
 // the labels among the neighbors.
 //
-// For directed graphs, the definition is slightly more complicated:
-// a neighbor that is connected through both an outgoing and on an incoming
-// edge counts twice.
+// For directed graphs, the definition is refined slightly: a label on a 
+// neighbor that is connected through both an outgoing and on an incoming edge
+// counts twice:
+//
+// min ( argmax_{l} (#incoming neighbors with l + #outgoing neighbors with l) )
 //
 // ## Example (undirected)
 //
@@ -106,7 +108,7 @@
 // AL = A'*diag(L) = | 0 5 4 5 4 |
 //                   | . . .     |
 //
-// Next, we needo compute the minimum mode value for each row. As it is
+// Next, we need to compute the minimum mode value for each row. As it is
 // difficult to capture this operation as a monoid, we extract each row of
 // the matrix and compute the minimum mode outside of GraphBLAS terms.
 //
@@ -204,7 +206,7 @@ GrB_Info LAGraph_cdlp        // compute cdlp for all nodes in A
 
     LAGraph_tic(tic);
 
-    // TODO: maybe iteration can be terminated when L = L'
+    // TODO: the iteration can be terminated when L[n] = L[n-1]
     if (sanitize)
     {
         LAGraph_tic (tic) ;
