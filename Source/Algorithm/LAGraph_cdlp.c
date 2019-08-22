@@ -295,8 +295,6 @@ GrB_Info LAGraph_cdlp
     GrB_Index nz; // nz = # of nnz elements in the graph
     LAGRAPH_OK (GrB_Matrix_nvals(&nz, A))
 
-    Print_Label_Matrix(L);
-
     LAGRAPH_OK(GrB_Matrix_new(&AL, GrB_UINT64, n, n))
     for (int iteration = 0; iteration < itermax; iteration++) {
         // AL = A * L
@@ -310,8 +308,8 @@ GrB_Info LAGraph_cdlp
             replace_desc
         ))
 
-        //const int nthreads = LAGraph_get_nthreads();
-        //#pragma omp parallel for num_threads(nthreads) schedule(static)
+        const int nthreads = LAGraph_get_nthreads();
+        #pragma omp parallel for num_threads(nthreads) schedule(static)
         for (GrB_Index row_index = 0; row_index < n; row_index++) {
             GrB_Info for_info;
 
@@ -368,8 +366,8 @@ GrB_Info LAGraph_cdlp
             CDLP_OMP_FREE_ALL
         }
 
-        printf("\n\nIteration %d ----\n", iteration);
-        Print_Label_Matrix(L);
+//        printf("\n\nIteration %d ----\n", iteration);
+//        Print_Label_Matrix(L);
     }
 //    Print_Label_Matrix(L);
 

@@ -141,8 +141,8 @@ int main (int argc, char **argv)
     // compute CDLP
     //--------------------------------------------------------------------------
 
-    #define NTRIALS 1
-    int nthread_list [NTRIALS] = { 1 };
+    #define NTRIALS 4
+    int nthread_list [NTRIALS] = { 1, 2, 4, 8 };
 
     double t1 = -1 ;
     int nthreads_t1 = 0 ;
@@ -159,7 +159,7 @@ int main (int argc, char **argv)
         double timing [2] ;
         LAGRAPH_OK (LAGraph_cdlp(&CDLP, A, symmetric, true, itermax, timing)) ;
         double t = timing [1] ;
-        GxB_print(CDLP, GxB_COMPLETE);
+//        GxB_print(CDLP, GxB_COMPLETE);
 
         if (CDLP1 == NULL)
         {

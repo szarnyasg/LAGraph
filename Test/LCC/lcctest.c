@@ -143,10 +143,8 @@ int main (int argc, char **argv)
 
     double t1 = -1 ;
     int nthreads_t1 = 0 ;
-    // for (int nthreads = 1 ; nthreads <= nthreads_max ; )
     for (int trial = 0 ; trial < NTRIALS ; trial++)
     {
-
         int nthreads = nthread_list [trial] ;
         if (nthreads > nthreads_max) break ;
         LAGraph_set_nthreads (nthreads) ;
