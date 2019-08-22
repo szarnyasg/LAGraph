@@ -124,17 +124,40 @@
 
 #include "LAGraph_internal.h"
 
-#define LAGRAPH_FREE_ALL            \
-{                                   \
-    GrB_free (&L) ;                 \
-    if (sanitize) GrB_free (&S) ;   \
-    GrB_free (&S) ;                 \
-    GrB_free (&AL) ;                \
+#define CDLP_OMP_FREE_ALL                                                      \
+{                                                                              \
+    GrB_free(&row);                                                            \
+    LAGraph_free(I);                                                          \
+    LAGraph_free(V);                                                          \
+}
+
+#define CDLP_OMP_ERROR(message, info)                                          \
+{                                                                              \
+    fprintf (stderr, "LAGraph error: %s\n[%d]\n%s\nFile: %s Line: %d\n",       \
+        message, info, GrB_error ( ), __FILE__, __LINE__) ;                    \
+    CDLP_OMP_FREE_ALL                                                          \
+}
+
+#define CDLP_OMP_CHECK(method)                                                 \
+{                                                                              \
+    for_info = method ;                                                        \
+    if (! (for_info == GrB_SUCCESS || info == GrB_NO_VALUE))                   \
+    {                                                                          \
+        CDLP_OMP_ERROR("", info);                                              \
+        continue;                                                              \
+    }                                                                          \
+}
+
+#define LAGRAPH_FREE_ALL                                                       \
+{                                                                              \
+    GrB_free (&L) ;                                                            \
+    if (sanitize) GrB_free (&S) ;                                              \
+    GrB_free (&S) ;                                                            \
+    GrB_free (&AL) ;                                                           \
 }
 
 // TODO: remove this
-void Print_Label_Matrix(GrB_Matrix m)
-{
+void Print_Label_Matrix(GrB_Matrix m) {
     GrB_Index row_vals;
     GrB_Matrix_nrows(&row_vals, m);
 
@@ -143,39 +166,62 @@ void Print_Label_Matrix(GrB_Matrix m)
     uint64_t value;
 
     printf(" ");
-    for (GrB_Index i = 0; i < row_vals; i++)
-    {
+    for (GrB_Index i = 0; i < row_vals; i++) {
         printf(" %ld", i + 1);
     }
     printf("\n");
 
     printf("[");
-    for (GrB_Index i = 0; i < row_vals; i++)
-    {
+    for (GrB_Index i = 0; i < row_vals; i++) {
         GrB_Matrix_extractElement(&value, m, i, i);
         printf(" %ld", value);
     }
     printf(" ]\n");
 }
 
-int cmp_uint64(const void *a, const void *b)  {
-    if ( *(uint64_t *)a > *(uint64_t *)b ) return +1;
-    if ( *(uint64_t *)a < *(uint64_t *)b ) return -1;
+uint64_t CDLP_GetMinModus(
+    const uint64_t *labels,
+    const GrB_Index num_vals
+) {
+    uint64_t modus_label = labels[num_vals - 1];
+    GrB_Index modus_occurrence = 1;
+    GrB_Index current_occurrence = 1;
+
+    for (int64_t i = num_vals - 2; i >= 0; i--) {
+        if (labels[i] != labels[i + 1]) {
+            if (current_occurrence >= modus_occurrence) {
+                modus_label = labels[i + 1];
+                modus_occurrence = current_occurrence;
+            }
+            current_occurrence = 1;
+        } else {
+            current_occurrence++;
+        }
+    }
+
+    if (current_occurrence >= modus_occurrence) {
+        modus_label = labels[0];
+    }
+    return modus_label;
+}
+
+int cmp_uint64(const void *a, const void *b) {
+    if (*(uint64_t *) a > *(uint64_t *) b) return +1;
+    if (*(uint64_t *) a < *(uint64_t *) b) return -1;
     return 0;
 }
 
-GrB_Info LAGraph_cdlp        // compute cdlp for all nodes in A
-(
-    GrB_Vector *CDLP_handle, // output vector
-    const GrB_Matrix A,      // input matrix
-    // TODO: handle the case when matrix is not symmetric
-    bool symmetric,          // denote whether the matrix is symmetric
-    bool sanitize,           // if true, ensure A is binary
-    int itermax,             // max number of iterations,
-    double *t                // t [0] = sanitize time, t [1] = cdlp time,
-                             // in seconds
-)
-{
+GrB_Info LAGraph_cdlp
+    (
+        GrB_Vector *CDLP_handle, // output vector
+        const GrB_Matrix A,      // input matrix
+        // TODO: handle the case when matrix is not symmetric
+        bool symmetric,          // denote whether the matrix is symmetric
+        bool sanitize,           // if true, ensure A is binary
+        int itermax,             // max number of iterations,
+        double *t                // t [0] = sanitize time, t [1] = cdlp time,
+        // in seconds
+    ) {
     GrB_Info info;
 
     // labels are stored as a diagonal matrix
@@ -184,162 +230,146 @@ GrB_Info LAGraph_cdlp        // compute cdlp for all nodes in A
     GrB_Matrix AL;
     GrB_Vector CDLP;
 
+    GrB_Descriptor transpose_desc;
+    GrB_Descriptor replace_desc;
+
     //--------------------------------------------------------------------------
     // check inputs
     //--------------------------------------------------------------------------
 
-    if (CDLP_handle == NULL)
-    {
+    if (CDLP_handle == NULL) {
         return GrB_NULL_POINTER;
+    }
+
+    //--------------------------------------------------------------------------
+    // ensure input is binary and has no self-edges
+    //--------------------------------------------------------------------------
+
+    double tic[2];
+    t[0] = 0;         // sanitize time
+    t[1] = 0;         // CDLP time
+
+    LAGraph_tic(tic);
+
+    // TODO: the iteration can be terminated when L[n] = L[n-1]
+    if (sanitize) {
+        LAGraph_tic(tic);
+
+        // S = binary pattern of A
+        LAGRAPH_OK (LAGraph_pattern(&S, A))
+        // Remove all self edges
+        LAGRAPH_OK (LAGraph_prune_diag(S))
+        t[0] = LAGraph_toc(tic);
+    } else {
+        // Use the input as-is, and assume it is binary with no self edges.
+        // Results are undefined if this condition does not hold.
+        S = A;
     }
 
     // n = size of A (# of nodes in the graph)
     GrB_Index n;
     LAGRAPH_OK (GrB_Matrix_nrows(&n, A))
-    //--------------------------------------------------------------------------
-    // ensure input is binary and has no self-edges
-    //--------------------------------------------------------------------------
-
-    double tic [2] ;
-    t [0] = 0 ;         // sanitize time
-    t [1] = 0 ;         // CDLP time
-
-    LAGraph_tic(tic);
-
-    // TODO: the iteration can be terminated when L[n] = L[n-1]
-    if (sanitize)
-    {
-        LAGraph_tic (tic) ;
-
-        // S = binary pattern of A
-        LAGRAPH_OK (LAGraph_pattern (&S, A)) ;
-
-        // remove all self edges
-        LAGRAPH_OK (LAGraph_prune_diag (S)) ;
-        t [0] = LAGraph_toc (tic) ;
-    }
-    else
-    {
-        // Use the input as-is, and assume it is binary with no self edges.
-        // Results are undefined if this condition does not hold.
-        S = A ;
-    }
-
-    LAGraph_tic (tic) ;
-
-    GrB_Matrix_nrows(&n, A);
-
-    // Initialize L with diagonal elements 1..n
-    LAGRAPH_OK(GrB_Matrix_new(&L, GrB_UINT64, n, n))
-    for (GrB_Index i = 0; i < n; i++)
-    {
-        LAGRAPH_OK(GrB_Matrix_setElement(L, i + 1, i, i))
-    }
 
     GxB_Format_Value A_format = -1;
-    LAGRAPH_OK (GxB_get (A, GxB_FORMAT, &A_format))
-    if (A_format != GxB_BY_ROW)
-    {
+    LAGRAPH_OK (GxB_get(A, GxB_FORMAT, &A_format))
+    if (A_format != GxB_BY_ROW) {
         LAGRAPH_ERROR(
             "CDLP algorithm only works on matrices stored by row (CSR)",
             GrB_INVALID_OBJECT
         )
     }
 
-    for (int iteration = 0; iteration < itermax; iteration++)
-    {
-//        Print_Label_Matrix(L);
-//        printf("\n\nIteration %d ----\n", iteration);
+    LAGraph_tic(tic);
 
+    LAGRAPH_OK(GrB_Descriptor_new(&transpose_desc))
+    LAGRAPH_OK(GrB_Descriptor_set(transpose_desc, GrB_INP0, GrB_TRAN))
+    LAGRAPH_OK(GrB_Descriptor_new(&replace_desc))
+    LAGRAPH_OK(GrB_Descriptor_set(replace_desc, GrB_OUTP, GrB_REPLACE))
+
+    // Initialize L with diagonal elements 1..n
+    LAGRAPH_OK(GrB_Matrix_new(&L, GrB_UINT64, n, n))
+    for (GrB_Index i = 0; i < n; i++) {
+        LAGRAPH_OK(GrB_Matrix_setElement(L, i + 1, i, i))
+    }
+
+    GrB_Index nz; // nz = # of nnz elements in the graph
+    LAGRAPH_OK (GrB_Matrix_nvals(&nz, A))
+
+    Print_Label_Matrix(L);
+
+    LAGRAPH_OK(GrB_Matrix_new(&AL, GrB_UINT64, n, n))
+    for (int iteration = 0; iteration < itermax; iteration++) {
         // AL = A * L
-        LAGRAPH_OK(GrB_Matrix_new(&AL, GrB_UINT64, n, n))
-        LAGRAPH_OK(GrB_mxm(AL, NULL, NULL, GxB_PLUS_TIMES_UINT64, S, L, NULL ))
-        GrB_free(&L);
+        LAGRAPH_OK(GrB_mxm(
+            AL,
+            GrB_NULL,
+            GrB_NULL,
+            GxB_PLUS_TIMES_UINT64,
+            S,
+            L,
+            replace_desc
+        ))
 
-        GrB_Index nz; // nz = # of nnz elements in the graph
-        GrB_Index *I = NULL, *J = NULL; // for col/row indices of entries from AT
-        uint64_t *V = NULL;
+        //const int nthreads = LAGraph_get_nthreads();
+        //#pragma omp parallel for num_threads(nthreads) schedule(static)
+        for (GrB_Index row_index = 0; row_index < n; row_index++) {
+            GrB_Info for_info;
 
-        LAGRAPH_OK (GrB_Matrix_nvals (&nz, AL));
+            GrB_Vector row;
+            GrB_Index *I = NULL;
+            uint64_t *V = NULL;
 
-        I = LAGraph_malloc (nz, sizeof(GrB_Index)) ;
-        J = LAGraph_malloc (nz, sizeof(GrB_Index)) ;
-        V = LAGraph_malloc (nz, sizeof(GrB_UINT64)) ;
-
-        // initialize new matrix for L
-        LAGRAPH_OK(GrB_Matrix_new(&L, GrB_UINT64, n, n))
-
-        //--------------------------------------------------------------------------
-        // extract tuples from AL, compute new labels
-        //--------------------------------------------------------------------------
-        LAGRAPH_OK (GrB_Matrix_extractTuples(I, J, V, &nz, AL));
-        GrB_free(&AL);
-
-        GrB_Index current_row = 0;
-        GrB_Index row_start_index = 0;
-
-        // We are iterating through the rows of the matrix, exploiting the
-        // fact that SuiteSparse:GraphBLAS uses CSR by default and returns
-        // the tuples in sorted order. Spec v3.0.1, GrB_Matrix_extractTuples:
-        //
-        // "The GraphBLAS API states the tuples can be returned in any order.
-        // SuiteSparse:GraphBLAS chooses to always return them in sorted order,
-        // depending on whether the matrix is stored by row or by column."
-        //
-        // Note that the column position (J[k]) is not relevant here (it
-        // represents where the label 'comes from' which does not matter).
-        for (GrB_Index k = 0; k <= nz; k++)
-        {
-            if (k == nz || I[k] > current_row)
-            {
-                // We find the minmode value using a sorted list.
-                qsort(
-                    &V[row_start_index],
-                    k - row_start_index,
-                    sizeof(uint64_t),
-                    cmp_uint64
-                );
-
-                // Upon each change in value, we assess whether the current
-                // run is longer than the previous longest run and if it is,
-                // we change the longest run. This guarantees that we always
-                // select the smallest one of the most frequent label.
-                uint64_t max_value = V[row_start_index];
-                uint64_t max_count = 1;
-                uint64_t current_count = 1;
-
-//                printf(" | %ld ", V[row_start_index]);
-                for (int q = row_start_index + 1; q <= k; q++)
-                {
-//                    printf("%ld ", V[q]);
-                    if (q < k && V[q] == V[q-1])
-                    {
-                        current_count++;
-                    }
-                    else // change of value
-                    {
-                        if (current_count > max_count)
-                        {
-                            max_value = V[q-1];
-                            max_count = current_count;
-                        }
-                        current_count = 1;
-                    }
-                }
-//                printf(" min_argmax=%ld \n", max_value);
-
-                LAGRAPH_OK(GrB_Matrix_setElement(L, max_value, current_row, current_row))
-
-                if (k < nz)
-                {
-                    row_start_index = k;
-                    current_row = I[k];
-                } // else the loop ends
+            V = LAGraph_malloc(nz, sizeof(uint64_t));
+            if (V == NULL) {
+                CDLP_OMP_ERROR("Cannot initialize V", GrB_NULL_POINTER)
             }
+
+            CDLP_OMP_CHECK(GrB_Vector_new(&row, GrB_UINT64, n))
+            CDLP_OMP_CHECK(GrB_Col_extract(
+                row,
+                GrB_NULL,
+                GrB_NULL,
+                AL,
+                GrB_ALL,
+                n,
+                row_index,
+                transpose_desc
+            ))
+
+            GrB_Index row_nnz;
+            CDLP_OMP_CHECK(GrB_Vector_nvals(&row_nnz, row))
+            if (row_nnz == 0) {
+                continue;
+            }
+
+            CDLP_OMP_CHECK(GrB_Vector_extractTuples(
+                GrB_NULL,
+                V,
+                &row_nnz,
+                row
+            ))
+            qsort(
+                V,
+                row_nnz,
+                sizeof(uint64_t),
+                cmp_uint64
+            );
+            uint64_t new_label = CDLP_GetMinModus(
+                V,
+                row_nnz
+            );
+            CDLP_OMP_CHECK(GrB_Matrix_setElement(
+                L,
+                new_label,
+                row_index,
+                row_index
+            ))
+
+            CDLP_OMP_FREE_ALL
         }
-        free(I);
-        free(J);
-        free(V);
+
+        printf("\n\nIteration %d ----\n", iteration);
+        Print_Label_Matrix(L);
     }
 //    Print_Label_Matrix(L);
 
@@ -347,9 +377,8 @@ GrB_Info LAGraph_cdlp        // compute cdlp for all nodes in A
     // extract final labels to the result vector
     //--------------------------------------------------------------------------
 
-    LAGRAPH_OK (GrB_Vector_new (&CDLP, GrB_UINT64, n))
-    for (GrB_Index i = 0; i < n; i++)
-    {
+    LAGRAPH_OK (GrB_Vector_new(&CDLP, GrB_UINT64, n))
+    for (GrB_Index i = 0; i < n; i++) {
         uint64_t x;
         LAGRAPH_OK(GrB_Matrix_extractElement(&x, L, i, i))
         LAGRAPH_OK(GrB_Vector_setElement(CDLP, x, i))
@@ -366,3 +395,4 @@ GrB_Info LAGraph_cdlp        // compute cdlp for all nodes in A
     t[1] = LAGraph_toc(tic);
     return (GrB_SUCCESS);
 }
+
