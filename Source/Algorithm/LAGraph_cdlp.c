@@ -127,8 +127,6 @@
 #define CDLP_OMP_FREE_ALL                                                      \
 {                                                                              \
     GrB_free(&row);                                                            \
-    LAGraph_free(I);                                                          \
-    LAGraph_free(V);                                                          \
 }
 
 #define CDLP_OMP_ERROR(message, info)                                          \
@@ -249,6 +247,15 @@ GrB_Info LAGraph_cdlp
     t[0] = 0;         // sanitize time
     t[1] = 0;         // CDLP time
 
+    // TODO: remove perf measurements
+    double sub_tick[2];
+    double init_time = 0.0;
+    double mxm_time = 0.0;
+    double alloc_time = 0.0;
+    double extract_time = 0.0;
+    double minmod_time = 0.0;
+    double free_time = 0.0;
+
     LAGraph_tic(tic);
 
     // TODO: the iteration can be terminated when L[n] = L[n-1]
@@ -266,9 +273,7 @@ GrB_Info LAGraph_cdlp
         S = A;
     }
 
-    // n = size of A (# of nodes in the graph)
-    GrB_Index n;
-    LAGRAPH_OK (GrB_Matrix_nrows(&n, A))
+    LAGraph_tic(sub_tick);
 
     GxB_Format_Value A_format = -1;
     LAGRAPH_OK (GxB_get(A, GxB_FORMAT, &A_format))
@@ -279,12 +284,17 @@ GrB_Info LAGraph_cdlp
         )
     }
 
-    LAGraph_tic(tic);
-
     LAGRAPH_OK(GrB_Descriptor_new(&transpose_desc))
     LAGRAPH_OK(GrB_Descriptor_set(transpose_desc, GrB_INP0, GrB_TRAN))
     LAGRAPH_OK(GrB_Descriptor_new(&replace_desc))
     LAGRAPH_OK(GrB_Descriptor_set(replace_desc, GrB_OUTP, GrB_REPLACE))
+
+    // n = size of A (# of nodes in the graph)
+    GrB_Index n;
+    LAGRAPH_OK (GrB_Matrix_nrows(&n, A))
+    // nz = # of nnz elements in the graph
+    GrB_Index nz;
+    LAGRAPH_OK (GrB_Matrix_nvals(&nz, A))
 
     // Initialize L with diagonal elements 1..n
     LAGRAPH_OK(GrB_Matrix_new(&L, GrB_UINT64, n, n))
@@ -292,11 +302,13 @@ GrB_Info LAGraph_cdlp
         LAGRAPH_OK(GrB_Matrix_setElement(L, i + 1, i, i))
     }
 
-    GrB_Index nz; // nz = # of nnz elements in the graph
-    LAGRAPH_OK (GrB_Matrix_nvals(&nz, A))
-
     LAGRAPH_OK(GrB_Matrix_new(&AL, GrB_UINT64, n, n))
+    init_time = LAGraph_toc(sub_tick);
+
     for (int iteration = 0; iteration < itermax; iteration++) {
+
+        LAGraph_tic(sub_tick);
+
         // AL = A * L
         LAGRAPH_OK(GrB_mxm(
             AL,
@@ -308,19 +320,26 @@ GrB_Info LAGraph_cdlp
             replace_desc
         ))
 
-        const int nthreads = LAGraph_get_nthreads();
-        #pragma omp parallel for num_threads(nthreads) schedule(static)
+        mxm_time += LAGraph_toc(sub_tick);
+        LAGraph_tic(sub_tick);
+
+        uint64_t V_index = 0;
+        uint64_t *V = NULL;
+        V = LAGraph_malloc(nz, sizeof(uint64_t));
+        if (V == NULL) {
+            LAGRAPH_ERROR("Cannot initialize V", GrB_NULL_POINTER)
+        }
+        alloc_time += LAGraph_toc(sub_tick);
+
+        //const int nthreads = LAGraph_get_nthreads();
+        //#pragma omp parallel for num_threads(nthreads) schedule(static)
         for (GrB_Index row_index = 0; row_index < n; row_index++) {
             GrB_Info for_info;
 
             GrB_Vector row;
             GrB_Index *I = NULL;
-            uint64_t *V = NULL;
 
-            V = LAGraph_malloc(nz, sizeof(uint64_t));
-            if (V == NULL) {
-                CDLP_OMP_ERROR("Cannot initialize V", GrB_NULL_POINTER)
-            }
+            LAGraph_tic(sub_tick);
 
             CDLP_OMP_CHECK(GrB_Vector_new(&row, GrB_UINT64, n))
             CDLP_OMP_CHECK(GrB_Col_extract(
@@ -342,10 +361,15 @@ GrB_Info LAGraph_cdlp
 
             CDLP_OMP_CHECK(GrB_Vector_extractTuples(
                 GrB_NULL,
-                V,
+                V+V_index,
                 &row_nnz,
                 row
             ))
+            V_index += row_nnz;
+
+            extract_time += LAGraph_toc(sub_tick);
+            LAGraph_tic(sub_tick);
+
             qsort(
                 V,
                 row_nnz,
@@ -363,17 +387,20 @@ GrB_Info LAGraph_cdlp
                 row_index
             ))
 
-            CDLP_OMP_FREE_ALL
-        }
+            minmod_time += LAGraph_toc(sub_tick);
+            LAGraph_tic(sub_tick);
 
-//        printf("\n\nIteration %d ----\n", iteration);
-//        Print_Label_Matrix(L);
+            CDLP_OMP_FREE_ALL
+
+            free_time += LAGraph_toc(sub_tick);
+        }
     }
-//    Print_Label_Matrix(L);
 
     //--------------------------------------------------------------------------
     // extract final labels to the result vector
     //--------------------------------------------------------------------------
+
+    LAGraph_tic(sub_tick);
 
     LAGRAPH_OK (GrB_Vector_new(&CDLP, GrB_UINT64, n))
     for (GrB_Index i = 0; i < n; i++) {
@@ -389,6 +416,17 @@ GrB_Info LAGraph_cdlp
     (*CDLP_handle) = CDLP;
     CDLP = NULL;            // set to NULL so LAGRAPH_FREE_ALL doesn't free it
     LAGRAPH_FREE_ALL
+
+    double cdlp_write = LAGraph_toc(sub_tick);
+
+    printf("\n");
+    printf("MXM time:     %14.6f sec\n", mxm_time);
+    printf("Alloc time:     %14.6f sec\n", alloc_time);
+    printf("Extract time:     %14.6f sec\n", extract_time);
+    printf("Minmod time:     %14.6f sec\n", minmod_time);
+    printf("Free time:     %14.6f sec\n", free_time);
+    printf("CDLP w time:     %14.6f sec\n", cdlp_write);
+    printf("\n");
 
     t[1] = LAGraph_toc(tic);
     return (GrB_SUCCESS);
