@@ -18,10 +18,10 @@ JOBS ?= 1
 
 # build and run test
 default: compile
-#	./build/cdlptest ldbc-cdlp-directed-example.mtx 0 5
-	./build/cdlptest ldbc-cdlp-undirected-example.mtx 1 5
-#	./build/cdlptest ../LCC/ldbc-directed-example.mtx 0 2
-	./build/cdlptest ../LCC/ldbc-undirected-example.mtx 1 2
+	./build/cdlptest ../../Data/ldbc-cdlp-directed-example.mtx 0 5
+	./build/cdlptest ../../Data/ldbc-cdlp-undirected-example.mtx 1 5
+	./build/cdlptest ../../Data/ldbc-directed-example-unweighted.mtx 0 2
+	./build/cdlptest ../../Data/ldbc-undirected-example-unweighted.mtx 1 2
 
 # build test
 compile:
