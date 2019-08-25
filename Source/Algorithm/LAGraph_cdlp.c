@@ -183,7 +183,7 @@ void Print_Label_Matrix(GrB_Matrix m) {
     printf(" ]\n");
 }
 
-GrB_Index GetMinModus(
+GrB_Index Get_Min_Modus(
     const GrB_Index *labels,
     const GrB_Index num_vals
 ) {
@@ -209,7 +209,7 @@ GrB_Index GetMinModus(
     return modus_label;
 }
 
-void BuildRowMap(
+void Build_Row_Map(
     const GrB_Index *row_index,
     const GrB_Index element_count,
     RowMap *row_map
@@ -234,14 +234,12 @@ void BuildRowMap(
         }
     }
 
-    if (row_index[element_count - 1] != row_index[element_count - 2]) {
-        row_map->row_offset[row_map->number_of_rows] = element_count - 1;
-        row_map->row_length[row_map->number_of_rows] = 1;
-        row_map->number_of_rows++;
-    }
+    row_map->row_offset[row_map->number_of_rows] = start_index;
+    row_map->row_length[row_map->number_of_rows] = run_length;
+    row_map->number_of_rows++;
 }
 
-int cmp_uint64(const void *a, const void *b) {
+int CMP_uint64(const void *a, const void *b) {
     if (*(uint64_t *) a > *(uint64_t *) b) return +1;
     if (*(uint64_t *) a < *(uint64_t *) b) return -1;
     return 0;
@@ -384,7 +382,7 @@ GrB_Info LAGraph_cdlp
             replace_desc
         ))
 
-//        GxB_print(SL, GxB_COMPLETE);
+        GxB_print(SL, GxB_COMPLETE);
 
         mxm_time += LAGraph_toc(sub_tick);
         LAGraph_tic(sub_tick);
@@ -398,7 +396,7 @@ GrB_Info LAGraph_cdlp
             SL
         ))
 
-        BuildRowMap(I, element_count, &row_map);
+        Build_Row_Map(I, element_count, &row_map);
 
         const int nthreads = LAGraph_get_nthreads();
         #pragma omp parallel for num_threads(nthreads) schedule(static)
@@ -416,20 +414,19 @@ GrB_Info LAGraph_cdlp
                 V + row_offset,
                 row_length,
                 sizeof(uint64_t),
-                cmp_uint64
+                CMP_uint64
             );
 
-//            printf("%lu - ", column_index);
-//            for (GrB_Index i = 0; i < row_length; i++) {
-//                printf("%lu ", V[row_offset + i]);
-//            }
-
-            GrB_Index min_mod = GetMinModus(
+            GrB_Index min_mod = Get_Min_Modus(
                 V + row_offset,
                 row_length
             );
 
-//            printf("- %lu\n", min_mod);
+            printf("%lu - ", column_index);
+            for (GrB_Index i = 0; i < row_length; i++) {
+                printf("%lu ", V[row_offset + i]);
+            }
+            printf("- %lu\n", min_mod);
 
             GrB_Matrix_setElement(
                 L,
@@ -439,7 +436,7 @@ GrB_Info LAGraph_cdlp
             );
         }
 
-//        Print_Label_Matrix(L);
+        Print_Label_Matrix(L);
 
         printf("%lu\n", element_count);
     }
