@@ -382,7 +382,7 @@ GrB_Info LAGraph_cdlp
             replace_desc
         ))
 
-        GxB_print(SL, GxB_COMPLETE);
+//        GxB_print(SL, GxB_COMPLETE);
 
         mxm_time += LAGraph_toc(sub_tick);
         LAGraph_tic(sub_tick);
@@ -422,11 +422,11 @@ GrB_Info LAGraph_cdlp
                 row_length
             );
 
-            printf("%lu - ", column_index);
-            for (GrB_Index i = 0; i < row_length; i++) {
-                printf("%lu ", V[row_offset + i]);
-            }
-            printf("- %lu\n", min_mod);
+//            printf("%lu - ", column_index);
+//            for (GrB_Index i = 0; i < row_length; i++) {
+//                printf("%lu ", V[row_offset + i]);
+//            }
+//            printf("- %lu\n", min_mod);
 
             GrB_Matrix_setElement(
                 L,
@@ -436,9 +436,7 @@ GrB_Info LAGraph_cdlp
             );
         }
 
-        Print_Label_Matrix(L);
-
-        printf("%lu\n", element_count);
+//        Print_Label_Matrix(L);
     }
 
     //--------------------------------------------------------------------------
