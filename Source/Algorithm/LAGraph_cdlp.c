@@ -396,7 +396,9 @@ GrB_Info LAGraph_cdlp
             SL
         ))
 
-        Build_Row_Map(I, element_count, &row_map);
+        if (iteration == 0) {
+            Build_Row_Map(I, element_count, &row_map);
+        }
 
         const int nthreads = LAGraph_get_nthreads();
         #pragma omp parallel for num_threads(nthreads) schedule(static)
