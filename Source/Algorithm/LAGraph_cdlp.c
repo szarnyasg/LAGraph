@@ -65,9 +65,8 @@
 // In other words, we need to compute the *minimum mode value* (minmode) for
 // the labels among the neighbors.
 //
-// For directed graphs, the definition is refined slightly: a label on a 
-// neighbor that is connected through both an outgoing and on an incoming edge
-// counts twice:
+// For directed graphs, a label on a neighbor that is connected through both
+// an outgoing and on an incoming edge counts twice:
 //
 // min ( argmax_{l} (#incoming neighbors with l + #outgoing neighbors with l) )
 //
@@ -99,14 +98,13 @@
 //           | 0 0 0 5 0 |
 //           | 0 0 0 0 4 |
 //
-// If we multiply the transposed of this matrix with diag(L), we get a matrix
-// containing the labels of the neighbor nodes. (The transpose operation is
-// required as we propagate the labels in the reverse direction of the edges).
+// If we multiply adjacency matrix with diag(L), we get a matrix
+// containing the labels of the neighbor nodes.
 //
 // In the example, this gives:
 //
-// AL = A'*diag(L) = | 0 5 4 5 4 |
-//                   | . . .     |
+// AL = A*diag(L) = | 0 5 4 5 4 |
+//                  | . . .     |
 //
 // Next, we need to compute the minimum mode value for each row. As it is
 // difficult to capture this operation as a monoid, we extract each row of
@@ -249,7 +247,7 @@ GrB_Info LAGraph_cdlp
     (
         GrB_Vector *CDLP_handle, // output vector
         const GrB_Matrix A,      // input matrix
-        // TODO: handle the case when matrix is not symmetric
+        // TODO: handle the case when matrix is not symmetric, i.e., the graph is directed
         bool symmetric,          // denote whether the matrix is symmetric
         bool sanitize,           // if true, ensure A is binary
         int itermax,             // max number of iterations,
