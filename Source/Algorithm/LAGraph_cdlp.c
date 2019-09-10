@@ -155,11 +155,15 @@ typedef struct {
     GrB_free (&L) ;                                                            \
     if (sanitize) GrB_free (&S) ;                                              \
     GrB_free (&S) ;                                                            \
-    GrB_free (&SL) ;                                                           \
+    GrB_free (&AL_in) ;                                                        \
+    GrB_free (&AL_out) ;                                                       \
+    GrB_free (&desc_in) ;                                                      \
+    GrB_free (&desc_out) ;                                                     \
 }
 
 // TODO: remove this
-void Print_Label_Matrix(GrB_Matrix m) {
+void Print_Label_Matrix(GrB_Matrix m)
+{
     GrB_Index row_vals;
     GrB_Matrix_nrows(&row_vals, m);
 
@@ -168,40 +172,49 @@ void Print_Label_Matrix(GrB_Matrix m) {
     uint64_t value;
 
     printf(" ");
-    for (GrB_Index i = 0; i < row_vals; i++) {
+    for (GrB_Index i = 0; i < row_vals; i++)
+    {
         printf(" %ld", i + 1);
     }
     printf("\n");
 
     printf("[");
-    for (GrB_Index i = 0; i < row_vals; i++) {
+    for (GrB_Index i = 0; i < row_vals; i++)
+    {
         GrB_Matrix_extractElement(&value, m, i, i);
         printf(" %ld", value);
     }
     printf(" ]\n");
 }
 
-GrB_Index Get_Min_Modus(
+GrB_Index Get_Min_Mode(
     const GrB_Index *labels,
     const GrB_Index num_vals
-) {
+)
+{
     GrB_Index modus_label = labels[num_vals - 1];
     GrB_Index modus_occurrence = 1;
     GrB_Index current_occurrence = 1;
 
-    for (int64_t i = num_vals - 2; i >= 0; i--) {
-        if (labels[i] != labels[i + 1]) {
-            if (current_occurrence >= modus_occurrence) {
+    for (int64_t i = num_vals - 2; i >= 0; i--)
+    {
+        if (labels[i] != labels[i + 1])
+        {
+            if (current_occurrence >= modus_occurrence)
+            {
                 modus_label = labels[i + 1];
                 modus_occurrence = current_occurrence;
             }
             current_occurrence = 1;
-        } else {
+        }
+        else
+        {
             current_occurrence++;
         }
     }
 
-    if (current_occurrence >= modus_occurrence) {
+    if (current_occurrence >= modus_occurrence)
+    {
         modus_label = labels[0];
     }
     return modus_label;
@@ -211,15 +224,18 @@ void Build_Row_Map(
     const GrB_Index *row_index,
     const GrB_Index element_count,
     RowMap *row_map
-) {
+)
+{
     GrB_Index start_index = 0;
     GrB_Index run_length = 1;
     GrB_Index current_index = *row_index;
 
     row_map->number_of_rows = 0;
 
-    for (GrB_Index i = 1; i < element_count; i++) {
-        if (current_index != row_index[i]) {
+    for (GrB_Index i = 1; i < element_count; i++)
+    {
+        if (current_index != row_index[i])
+        {
             row_map->row_offset[row_map->number_of_rows] = start_index;
             row_map->row_length[row_map->number_of_rows] = run_length;
             row_map->number_of_rows++;
@@ -227,7 +243,9 @@ void Build_Row_Map(
             start_index = i;
             run_length = 1;
             current_index = row_index[i];
-        } else {
+        }
+        else
+        {
             run_length++;
         }
     }
@@ -237,23 +255,25 @@ void Build_Row_Map(
     row_map->number_of_rows++;
 }
 
-int CMP_uint64(const void *a, const void *b) {
+int CMP_uint64(const void *a, const void *b)
+{
     if (*(uint64_t *) a > *(uint64_t *) b) return +1;
     if (*(uint64_t *) a < *(uint64_t *) b) return -1;
     return 0;
 }
 
 GrB_Info LAGraph_cdlp
-    (
-        GrB_Vector *CDLP_handle, // output vector
-        const GrB_Matrix A,      // input matrix
-        // TODO: handle the case when matrix is not symmetric, i.e., the graph is directed
-        bool symmetric,          // denote whether the matrix is symmetric
-        bool sanitize,           // if true, ensure A is binary
-        int itermax,             // max number of iterations,
-        double *t                // t [0] = sanitize time, t [1] = cdlp time,
-        // in seconds
-    ) {
+(
+    GrB_Vector *CDLP_handle, // output vector
+    const GrB_Matrix A,      // input matrix
+    // TODO: handle the case when matrix is not symmetric, i.e., the graph is directed
+    bool symmetric,          // denote whether the matrix is symmetric
+    bool sanitize,           // if true, ensure A is binary
+    int itermax,             // max number of iterations,
+    double *t                // t [0] = sanitize time, t [1] = cdlp time,
+    // in seconds
+)
+{
     GrB_Info info;
 
     // Diagonal label matrix
@@ -261,21 +281,26 @@ GrB_Info LAGraph_cdlp
     // Source adjacency matrix
     GrB_Matrix S = NULL;
     // S*L matrix
-    GrB_Matrix SL = NULL;
+    GrB_Matrix AL_in = NULL;
+    GrB_Matrix AL_out = NULL;
     // Result CDLP vector
     GrB_Vector CDLP = NULL;
 
-    GrB_Descriptor replace_desc = NULL;
+    GrB_Descriptor desc_in = NULL;
+    GrB_Descriptor desc_out = NULL;
 
     // Arrays holding extracted tuples
-    GrB_Index *restrict I = NULL;
-    GrB_Index *restrict V = NULL;
+    GrB_Index *restrict I_in = NULL;
+    GrB_Index *restrict V_in = NULL;
+    GrB_Index *restrict I_out = NULL;
+    GrB_Index *restrict V_out = NULL;
 
     //--------------------------------------------------------------------------
     // check inputs
     //--------------------------------------------------------------------------
 
-    if (CDLP_handle == NULL) {
+    if (CDLP_handle == NULL)
+    {
         return GrB_NULL_POINTER;
     }
 
@@ -299,7 +324,8 @@ GrB_Info LAGraph_cdlp
     LAGraph_tic(tic);
 
     // TODO: the iteration can be terminated when L[n] = L[n-1]
-    if (sanitize) {
+    if (sanitize)
+    {
         LAGraph_tic(tic);
 
         // S = binary pattern of A
@@ -307,7 +333,9 @@ GrB_Info LAGraph_cdlp
         // Remove all self edges
         LAGRAPH_OK (LAGraph_prune_diag(S))
         t[0] = LAGraph_toc(tic);
-    } else {
+    }
+    else
+    {
         // Use the input as-is, and assume it is binary with no self edges.
         // Results are undefined if this condition does not hold.
         S = A;
@@ -317,15 +345,21 @@ GrB_Info LAGraph_cdlp
 
     GxB_Format_Value A_format = -1;
     LAGRAPH_OK (GxB_get(A, GxB_FORMAT, &A_format))
-    if (A_format != GxB_BY_ROW) {
+    if (A_format != GxB_BY_ROW)
+    {
         LAGRAPH_ERROR(
             "CDLP algorithm only works on matrices stored by row (CSR)",
             GrB_INVALID_OBJECT
         )
     }
 
-    LAGRAPH_OK(GrB_Descriptor_new(&replace_desc))
-    LAGRAPH_OK(GrB_Descriptor_set(replace_desc, GrB_OUTP, GrB_REPLACE))
+    LAGRAPH_OK(GrB_Descriptor_new(&desc_in))
+    LAGRAPH_OK(GrB_Descriptor_set(desc_in, GrB_OUTP, GrB_REPLACE))
+
+    LAGRAPH_OK(GrB_Descriptor_new(&desc_out))
+    LAGRAPH_OK(GrB_Descriptor_set(desc_out, GrB_INP0, GrB_TRAN))
+    LAGRAPH_OK(GrB_Descriptor_set(desc_out, GrB_OUTP, GrB_REPLACE))
+
 
     // n = size of A (# of nodes in the graph)
     GrB_Index n;
@@ -336,48 +370,83 @@ GrB_Info LAGraph_cdlp
 
     // Initialize L with diagonal elements 1..n
     LAGRAPH_OK(GrB_Matrix_new(&L, GrB_UINT64, n, n))
-    for (GrB_Index i = 0; i < n; i++) {
+    for (GrB_Index i = 0; i < n; i++)
+    {
         LAGRAPH_OK(GrB_Matrix_setElement(L, i + 1, i, i))
     }
 
-    LAGRAPH_OK(GrB_Matrix_new(&SL, GrB_UINT64, n, n))
     init_time = LAGraph_toc(sub_tick);
 
-    I = LAGraph_malloc(nz, sizeof(uint64_t));
-    if (I == NULL) {
+    // in
+    LAGRAPH_OK(GrB_Matrix_new(&AL_in, GrB_UINT64, n, n))
+    I_in = LAGraph_malloc(nz, sizeof(uint64_t));
+    if (I_in == NULL)
+    {
         LAGRAPH_ERROR("Cannot initialize I", GrB_NULL_POINTER)
     }
-
-    V = LAGraph_malloc(nz, sizeof(uint64_t));
-    if (V == NULL) {
+    V_in = LAGraph_malloc(nz, sizeof(uint64_t));
+    if (V_in == NULL)
+    {
         LAGRAPH_ERROR("Cannot initialize J", GrB_NULL_POINTER)
     }
-
-    RowMap row_map = {
+    RowMap row_map_in =
+    {
         0,
         LAGraph_malloc(n, sizeof(GrB_Index)),
         LAGraph_malloc(n, sizeof(GrB_Index)),
     };
-    if (row_map.row_offset == NULL) {
+    if (row_map_in.row_offset == NULL)
+    {
         LAGRAPH_ERROR("Cannot initialize row_map", GrB_NULL_POINTER)
     }
-    if (row_map.row_length == NULL) {
+    if (row_map_in.row_length == NULL)
+    {
         LAGRAPH_ERROR("Cannot initialize run_length", GrB_NULL_POINTER)
     }
 
-    for (int iteration = 0; iteration < itermax; iteration++) {
+    // out
+    LAGRAPH_OK(GrB_Matrix_new(&AL_out, GrB_UINT64, n, n))
+    I_out = LAGraph_malloc(nz, sizeof(uint64_t));
+    if (I_out == NULL)
+    {
+        LAGRAPH_ERROR("Cannot initialize I", GrB_NULL_POINTER)
+    }
+    V_out = LAGraph_malloc(nz, sizeof(uint64_t));
+    if (V_out == NULL)
+    {
+        LAGRAPH_ERROR("Cannot initialize J", GrB_NULL_POINTER)
+    }
+    RowMap row_map_out =
+    {
+        0,
+        LAGraph_malloc(n, sizeof(GrB_Index)),
+        LAGraph_malloc(n, sizeof(GrB_Index)),
+    };
 
+    for (int iteration = 0; iteration < itermax; iteration++)
+    {
         LAGraph_tic(sub_tick);
 
-        // SL = A * L
+        // AL_in = A * L
         LAGRAPH_OK(GrB_mxm(
-            SL,
+            AL_in,
             GrB_NULL,
             GrB_NULL,
             GxB_PLUS_TIMES_UINT64,
             S,
             L,
-            replace_desc
+            desc_in
+        ))
+
+        // AL_out = A' * L
+        LAGRAPH_OK(GrB_mxm(
+            AL_out,
+            GrB_NULL,
+            GrB_NULL,
+            GxB_PLUS_TIMES_UINT64,
+            S,
+            L,
+            desc_out
         ))
 
 //        GxB_print(SL, GxB_COMPLETE);
@@ -387,56 +456,62 @@ GrB_Info LAGraph_cdlp
 
         GrB_Index element_count = nz;
         LAGRAPH_OK(GrB_Matrix_extractTuples_UINT64(
-            I,
+            I_in,
             GrB_NULL,
-            V,
+            V_in,
             &element_count,
-            SL
+            AL_in
+        ))
+        LAGRAPH_OK(GrB_Matrix_extractTuples_UINT64(
+            I_out,
+            GrB_NULL,
+            V_out,
+            &element_count,
+            AL_out
         ))
 
-        if (iteration == 0) {
-            Build_Row_Map(I, element_count, &row_map);
+        if (iteration == 0)
+        {
+            Build_Row_Map(I_in, element_count, &row_map_in);
+            Build_Row_Map(I_out, element_count, &row_map_out);
         }
 
         const int nthreads = LAGraph_get_nthreads();
         #pragma omp parallel for num_threads(nthreads) schedule(static)
-        for (
-            GrB_Index row_index = 0;
-            row_index < row_map.number_of_rows;
-            row_index++) {
+        for (GrB_Index row_index = 0;
+            row_index < row_map_in.number_of_rows;
+            row_index++)
+        {
+            GrB_Index row_offset_in = row_map_in.row_offset[row_index];
+            GrB_Index row_length_in = row_map_in.row_length[row_index];
+            GrB_Index column_index_in = I_in[row_offset_in];
 
-            GrB_Index row_offset = row_map.row_offset[row_index];
-            GrB_Index row_length = row_map.row_length[row_index];
+            GrB_Index row_offset_out = row_map_out.row_offset[row_index];
+            GrB_Index row_length_out = row_map_out.row_length[row_index];
+            GrB_Index column_index_out = I_out[row_offset_out];
 
-            GrB_Index column_index = I[row_offset];
+            // TODO: use GB_merge_select_2 here
 
             qsort(
-                V + row_offset,
-                row_length,
+                V_in + row_offset_in,
+                row_length_in,
                 sizeof(uint64_t),
                 CMP_uint64
             );
 
-            GrB_Index min_mod = Get_Min_Modus(
-                V + row_offset,
-                row_length
-            );
+            GrB_Index min_mod = Get_Min_Mode(V_in + row_offset_in, row_length_in);
 
 //            printf("%lu - ", column_index);
-//            for (GrB_Index i = 0; i < row_length; i++) {
+//            for (GrB_Index i = 0; i < row_length; i++)
+//            {
 //                printf("%lu ", V[row_offset + i]);
 //            }
 //            printf("- %lu\n", min_mod);
 
-            GrB_Matrix_setElement(
-                L,
-                min_mod,
-                column_index,
-                column_index
-            );
+            GrB_Matrix_setElement(L, min_mod, row_index, row_index);
         }
 
-//        Print_Label_Matrix(L);
+        Print_Label_Matrix(L);
     }
 
     //--------------------------------------------------------------------------
@@ -446,7 +521,8 @@ GrB_Info LAGraph_cdlp
     LAGraph_tic(sub_tick);
 
     LAGRAPH_OK (GrB_Vector_new(&CDLP, GrB_UINT64, n))
-    for (GrB_Index i = 0; i < n; i++) {
+    for (GrB_Index i = 0; i < n; i++)
+    {
         uint64_t x;
         LAGRAPH_OK(GrB_Matrix_extractElement(&x, L, i, i))
         LAGRAPH_OK(GrB_Vector_setElement(CDLP, x, i))
