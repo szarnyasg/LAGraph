@@ -196,6 +196,8 @@ GrB_Info LAGraph_cdlp
 {
     GrB_Info info;
 
+    printf("cdlp started\n");
+
     // Diagonal label matrix
     GrB_Matrix L = NULL;
     GrB_Matrix L_prev = NULL;
