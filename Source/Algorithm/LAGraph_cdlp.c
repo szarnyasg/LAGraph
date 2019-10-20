@@ -231,6 +231,9 @@ GrB_Info LAGraph_cdlp
     t [0] = 0;         // sanitize time
     t [1] = 0;         // CDLP time
 
+    double smalltic[2];
+
+    LAGraph_tic (smalltic) ;
     if (sanitize)
     {
         LAGraph_tic (tic) ;
@@ -248,6 +251,8 @@ GrB_Info LAGraph_cdlp
         // Results are undefined if this condition does not hold.
         S = A;
     }
+    printf("sanitize: %14.6f\n", LAGraph_toc (smalltic));
+    LAGraph_tic (smalltic);
 
     LAGraph_tic (tic) ;
 
@@ -310,14 +315,14 @@ GrB_Info LAGraph_cdlp
     uint64_t* workspace2 = LAGraph_malloc(nnz, sizeof(GrB_Index));
 
     const int nthreads = LAGraph_get_nthreads();
+    printf("init: %14.6f\n", LAGraph_toc (smalltic));
 
-    double itertic[2];
 
     for (int iteration = 0; iteration < itermax; iteration++)
     {
         printf("iteration: %d\n", iteration);
 
-        LAGraph_tic (itertic) ;
+        LAGraph_tic (smalltic) ;
 
         // AL_in = A * L
         LAGRAPH_OK(GrB_mxm(AL_in, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, S, L, desc_in))
@@ -329,13 +334,11 @@ GrB_Info LAGraph_cdlp
             LAGRAPH_OK(GrB_mxm(AL_out, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, S, L, desc_out))
             LAGRAPH_OK(GrB_Matrix_extractTuples_UINT64(&I[nz], GrB_NULL, &X[nz], &nz, AL_out))
         }
-        double mxm_time = LAGraph_toc (itertic) ;
-        printf("- mxm multi: %14.6f\n", mxm_time);
+        printf("- mxm multi: %14.6f\n", LAGraph_toc (smalltic));
 
-        LAGraph_tic (itertic) ;
+        LAGraph_tic (smalltic) ;
         GB_msort_2(I, X, workspace1, workspace2, nnz, nthreads);
-        double sort_time = LAGraph_toc (itertic) ;
-        printf("- mergesort: %14.6f\n", sort_time);
+        printf("- mergesort: %14.6f\n", LAGraph_toc (smalltic));
 
         int curr_row_index = 0;
         int curr_row_start = 0;
@@ -345,7 +348,7 @@ GrB_Info LAGraph_cdlp
         L = L_prev;
         L_prev = L_swap;
 
-        LAGraph_tic (itertic) ;
+        LAGraph_tic (smalltic) ;
         for (GrB_Index k = 0; k <= nnz; k++)
         {
             // check if there is a change in row index or if we hit the end of the array
@@ -358,8 +361,7 @@ GrB_Info LAGraph_cdlp
             }
         }
 
-        double minmode_time = LAGraph_toc (itertic) ;
-        printf("- minmode s: %14.6f\n", minmode_time);
+        printf("- minmode s: %14.6f\n", LAGraph_toc (smalltic));
 
         if (L_prev == L)
         {
