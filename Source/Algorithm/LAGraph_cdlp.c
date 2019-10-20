@@ -351,6 +351,7 @@ GrB_Info LAGraph_cdlp
         L_prev = L_swap;
 
         LAGraph_tic (smalltic) ;
+        #pragma omp parallel for num_threads(nthreads) schedule(static)
         for (GrB_Index k = 0; k <= nnz; k++)
         {
             // check if there is a change in row index or if we hit the end of the array
