@@ -150,64 +150,6 @@
     GrB_free (&desc_out) ;                                                     \
 }
 
-GrB_Index Get_Min_Mode(
-    const GrB_Index *labels,
-    const GrB_Index num_vals
-)
-{
-    GrB_Index mode_label = labels[num_vals - 1];
-    GrB_Index mode_occurrence = 1;
-    GrB_Index current_occurrence = 1;
-
-    for (int64_t i = num_vals - 2; i >= 0; i--)
-    {
-        if (labels[i] != labels[i + 1])
-        {
-            if (current_occurrence >= mode_occurrence)
-            {
-                mode_label = labels[i + 1];
-                mode_occurrence = current_occurrence;
-            }
-            current_occurrence = 1;
-        }
-        else
-        {
-            current_occurrence++;
-        }
-    }
-
-    if (current_occurrence >= mode_occurrence)
-    {
-        mode_label = labels[0];
-    }
-    return mode_label;
-}
-
-void Print_Label_Matrix(GrB_Matrix m)
-{
-    GrB_Index row_vals;
-    GrB_Matrix_nrows(&row_vals, m);
-
-    printf("Label vec:\n");
-
-    uint64_t value;
-
-    printf(" ");
-    for (GrB_Index i = 0; i < row_vals; i++)
-    {
-        printf(" %ld", i + 1);
-    }
-    printf("\n");
-
-    printf("[");
-    for (GrB_Index i = 0; i < row_vals; i++)
-    {
-        GrB_Matrix_extractElement(&value, m, i, i);
-        printf(" %ld", value);
-    }
-    printf(" ]\n");
-}
-
 GrB_Info LAGraph_cdlp
 (
     GrB_Vector *CDLP_handle, // output vector
@@ -220,8 +162,6 @@ GrB_Info LAGraph_cdlp
 )
 {
     GrB_Info info;
-
-    printf("cdlp started\n");
 
     // Diagonal label matrix
     GrB_Matrix L = NULL;
@@ -258,9 +198,6 @@ GrB_Info LAGraph_cdlp
     t [0] = 0;         // sanitize time
     t [1] = 0;         // CDLP time
 
-    double smalltic[2];
-
-    LAGraph_tic (smalltic) ;
     if (sanitize)
     {
         LAGraph_tic (tic) ;
@@ -278,8 +215,6 @@ GrB_Info LAGraph_cdlp
         // Results are undefined if this condition does not hold.
         S = A;
     }
-    printf("sanitize: %14.6f\n", LAGraph_toc (smalltic));
-    LAGraph_tic (smalltic);
 
     LAGraph_tic (tic) ;
 
@@ -342,15 +277,8 @@ GrB_Info LAGraph_cdlp
     uint64_t* workspace2 = LAGraph_malloc(nnz, sizeof(GrB_Index));
 
     const int nthreads = LAGraph_get_nthreads();
-    printf("init: %14.6f\n", LAGraph_toc (smalltic));
-
-
     for (int iteration = 0; iteration < itermax; iteration++)
     {
-        printf("iteration: %d\n", iteration);
-
-        LAGraph_tic (smalltic) ;
-
         // AL_in = A * L
         LAGRAPH_OK(GrB_mxm(AL_in, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, S, L, desc_in))
         LAGRAPH_OK(GrB_Matrix_extractTuples_UINT64(I, GrB_NULL, X, &nz, AL_in))
@@ -361,37 +289,28 @@ GrB_Info LAGraph_cdlp
             LAGRAPH_OK(GrB_mxm(AL_out, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, S, L, desc_out))
             LAGRAPH_OK(GrB_Matrix_extractTuples_UINT64(&I[nz], GrB_NULL, &X[nz], &nz, AL_out))
         }
-        printf("- mxm multi: %14.6f\n", LAGraph_toc (smalltic));
 
-        LAGraph_tic (smalltic) ;
         GB_msort_2(I, X, workspace1, workspace2, nnz, nthreads);
-        printf("- mergesort: %14.6f\n", LAGraph_toc (smalltic));
 
         // save current labels for comparison by swapping L and L_prev
         GrB_Matrix L_swap = L;
         L = L_prev;
         L_prev = L_swap;
 
-        LAGraph_tic (smalltic) ;
-
         GrB_Index mode_value = -1;
         GrB_Index mode_length = 0;
         GrB_Index run_length = 1;
 
         // I[k] is the current row index
-        // I[k] is the current value
-//        printf("k:    "); for (GrB_Index k = 0; k < nnz; k++) printf("%5d ", k); printf("\n");
-//        printf("I[k]: "); for (GrB_Index k = 0; k < nnz; k++) printf("%5d ", I[k]); printf("\n");
-//        printf("X[k]: "); for (GrB_Index k = 0; k < nnz; k++) printf("%5d ", X[k]); printf("\n");
-//        printf("mode:        ");
+        // X[k] is the current value
+        // we iterate in range 1..nnz and use the last index (nnz) to process the last row of the matrix
         for (GrB_Index k = 1; k <= nnz; k++)
         {
             // check if we have a reason to recompute the mode value
             if (k == nnz        // we surpassed the last element
              || I[k-1] != I[k]  // the run value has changed
-             || X[k-1] != X[k]) // the row has changed
+             || X[k-1] != X[k]) // the row index has changed
             {
-                //printf("RL: %d, ML: %d", run_length, mode_length);
                 if (run_length > mode_length)
                 {
                     mode_value = X[k-1];
@@ -401,21 +320,14 @@ GrB_Info LAGraph_cdlp
             }
             run_length++;
 
-            //printf("%5d ", mode_value);
-            //printf(" [ %d ]", mode_value);
-
             // check if we passed a row
             if (k == nnz        // we reached the last element
-             || I[k] != I[k-1]) // the row will change
+             || I[k-1] != I[k]) // the row index has changed
             {
                 GrB_Matrix_setElement(L, mode_value, I[k-1], I[k-1]);
                 mode_length = 0;
             }
         }
-        //printf("\n");
-        //printf("- minmode s: %14.6f\n", LAGraph_toc (smalltic));
-
-        //Print_Label_Matrix(L);
 
         if (L_prev == L)
         {
