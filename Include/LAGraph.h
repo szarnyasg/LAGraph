@@ -438,8 +438,7 @@ extern GrB_UnaryOp
     LAGraph_DECR_INT64          ,
 
     // unary operators for lcc
-    LAGraph_COMB_DIR_FP64       ,
-    LAGraph_COMB_UNDIR_FP64     ,
+    LAGraph_PERM_FP64           ,
 
     // unary ops to check if greater than zero
     LAGraph_GT0_FP32            ,
