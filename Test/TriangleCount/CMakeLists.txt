@@ -207,7 +207,7 @@ message ( STATUS "CMAKE C flags: " ${CMAKE_C_FLAGS} )
 file ( GLOB SOURCES "*.c" )
 
 add_executable ( ttest ${SOURCES} )
+add_executable ( ttest7 ${SOURCES} )
 
 # Libraries required for Demo programs
-target_link_libraries ( ttest graphblas lagraph m )
-
+target_link_libraries ( ttest ttest7 graphblas lagraph m )

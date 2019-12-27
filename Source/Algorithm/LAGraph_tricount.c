@@ -226,6 +226,64 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 C, NULL)) ;
             break ;
 
+        case 7:  // Low et al: triangle counting without matrix multiplication (HPEC'17)
+            LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
+
+            GrB_Index* indices = LAGraph_malloc(n, sizeof(GrB_Index));
+            for (GrB_Index i = 0; i < n; i++) {
+                indices[i] = i;
+            }
+
+            ntri = 0;
+
+            #pragma omp parallel for schedule (dynamic) reduction (+: ntri)
+            for (GrB_Index i = 1; i < n-1; i++) {
+                GrB_Vector a10, a12, tmp, delta_vec;
+                GrB_Matrix A20;
+
+                GrB_Matrix_new(&A20, GrB_UINT64, n-i-1, i);
+                GrB_Vector_new(&a10, GrB_UINT64, i);
+                GrB_Vector_new(&a12, GrB_UINT64, n-i-1);
+                GrB_Vector_new(&tmp, GrB_UINT64, i);
+                GrB_Vector_new(&delta_vec, GrB_UINT64, 1);
+
+                // a10 = A[i, 0:i-1] = A'[0:i-1, i] = A[0:i-1, i] (for symmetric matrices)
+                GrB_Col_extract(a10, GrB_NULL, GrB_NULL, A, &indices[0], i, i, GrB_NULL);
+                // a12 = A[i, i+1:n-1] = A'[i+1:n-1, i] = A[i+1:n-1, i] (for symmetric matrices)
+                GrB_Col_extract(a12, GrB_NULL, GrB_NULL, A, &indices[i+1], n-i-1, i, GrB_NULL);
+                // A20 = A[i+1:n-1, 0:i-1]
+                GrB_Matrix_extract(A20, GrB_NULL, GrB_NULL, A, &indices[i+1], n-i-1, &indices[0], i, GrB_NULL);
+
+                // compute delta = a12' * A20 * a10
+                // tmp = a12' * A20
+                GrB_vxm(tmp, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A20, GrB_NULL);
+                // delta_vec = tmp * a10
+                // delta_vec = a10 * tmp
+                GrB_vxm(delta_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
+
+                // extract single element from 1-length delta_vec
+                uint64_t delta;
+                GrB_Info info2 = GrB_Vector_extractElement(&delta, delta_vec, 0);
+                if (info2 == GrB_SUCCESS) {
+                    ntri += delta;
+                }
+
+//                if (i % 1000 == 0) {
+//                    printf("loop: %ld\n", i);
+//                    printf("- delta %ld\n", delta);
+//                    printf("- ntri  %ld\n", ntri);
+//                }
+                GrB_free(&A20);
+                GrB_free(&a12);
+                GrB_free(&a10);
+                GrB_free(&tmp);
+                GrB_free(&delta_vec);
+            }
+            free(indices);
+            t [0] = LAGraph_toc (tic) ;
+            LAGraph_tic (tic) ;
+            break ;
+
         default:    // invalid method
 
             return (GrB_INVALID_VALUE) ;
