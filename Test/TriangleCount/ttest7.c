@@ -86,17 +86,10 @@ int main (int argc, char **argv)
             printf ("unable to open file [%s]\n", argv[1]) ;
             return (GrB_INVALID_VALUE) ;
         }
-        if (argc == 2)
-        {
-            symmetric = false ;
-        }
-        else
-        {
-            symmetric = argv[2] == 0 ;
-        }
     }
 
     LAGRAPH_OK (LAGraph_mmread (&C, f)) ;
+
     GrB_Index n, ne ;
     LAGRAPH_OK (GrB_Matrix_nrows (&n, C)) ;
     LAGRAPH_OK (GrB_Matrix_nvals (&ne, C)) ;
