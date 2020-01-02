@@ -254,11 +254,16 @@ GrB_Info LAGraph_tricount   // count # of triangles
 //            GrB_Descriptor_set(extraction_desc2, GrB_INP0, GrB_TRAN);
 //            GrB_Descriptor_set(extraction_desc2, GrB_MASK, GrB_SCMP);
 
+            GrB_Descriptor desc;
+            GrB_Descriptor_new(&desc);
+            GrB_Descriptor_set(desc, GrB_INP0, GrB_TRAN);
+
             GxB_SelectOp s1, s2;
             GxB_SelectOp_new (&s1, select_index_smaller_than, GrB_UINT64, GrB_UINT64);
             GxB_SelectOp_new (&s2, select_index_greater_than, GrB_UINT64, GrB_UINT64);
 
-            #pragma omp parallel for schedule (dynamic) reduction (+: ntri)
+            double extracts = 0.0, selects = 0.0, multip1 = 0.0, multip2;
+            //#pragma omp parallel for schedule (dynamic) reduction (+: ntri)
             for (GrB_Index i = 1; i < n-1; i++) {
                 GrB_Vector a1, a10, a12, tmp, delta_vec;
 
@@ -284,23 +289,49 @@ GrB_Info LAGraph_tricount   // count # of triangles
 
                 // solution2
                 // a1 = A[:,i] = A[i,:]
-                GrB_Col_extract(a1, GrB_NULL, GrB_NULL, A, GrB_ALL, n, i, GrB_NULL);
+                double tic1[2] ;
+                LAGraph_tic (tic1) ;
+                GrB_Col_extract(a1, GrB_NULL, GrB_NULL, A, GrB_ALL, n, i, desc);
+                extracts+=LAGraph_toc (tic1);
 
                 GxB_Scalar thunk;
                 GxB_Scalar_new (&thunk, GrB_UINT64);
                 GxB_Scalar_setElement (thunk, i);
 
+                double tic2 [2] ;
+                LAGraph_tic (tic2) ;
                 GxB_select(a10, GrB_NULL, GrB_NULL, s1, a1, thunk, GrB_NULL);
                 GxB_select(a12, GrB_NULL, GrB_NULL, s2, a1, thunk, GrB_NULL);
+                selects+=LAGraph_toc (tic2);
 
                 GrB_free(&thunk);
 
-                // compute delta = a12' * A20 * a10
-                // tmp' = a12' * A20
-                GrB_vxm(tmp, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
+//                // compute delta = a12' * A20 * a10
+//                // tmp' = a12' * A20
+//                GrB_vxm(tmp, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
+//                // delta_vec = tmp' * a10
+//                GrB_vxm(delta_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
+//
+//                // compute delta = a12' * A20 * a10
+//                // extract single element from 1-length delta_vec
+//                GrB_Info info2 = GrB_Vector_extractElement(&delta, delta_vec, 0);
+//                if (info2 == GrB_SUCCESS) {
+//                    ntri += delta;
+//                }
+
+                double tic3 [2] ;
+                LAGraph_tic (tic3) ;
+                // tmp<a10> = a12 * A20
+                GrB_vxm(tmp, a10, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
+                multip1+=LAGraph_toc (tic3);
+
+                double tic4 [2] ;
+                LAGraph_tic (tic4) ;
                 // delta_vec = tmp' * a10
                 GrB_vxm(delta_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
+                multip2+=LAGraph_toc (tic4);
 
+                // compute delta = a12' * A20 * a10
                 // extract single element from 1-length delta_vec
                 uint64_t delta;
                 GrB_Info info2 = GrB_Vector_extractElement(&delta, delta_vec, 0);
@@ -308,11 +339,20 @@ GrB_Info LAGraph_tricount   // count # of triangles
                     ntri += delta;
                 }
 
-//                if (i % 1000 == 0) {
-//                    printf("loop: %ld\n", i);
-//                    printf("- delta %ld\n", delta);
-//                    printf("- ntri  %ld\n", ntri);
-//                }
+//                uint64_t delta;
+//                GrB_reduce(&delta, GrB_NULL, GrB_NULL, GxB_PLUS_UINT64_MONOID, tmp, GrB_NULL);
+//                ntri += delta;
+
+                if (i % 10000 == 0) {
+                    printf("loop: %ld\n", i);
+                    printf("- delta %ld\n", delta);
+                    printf("- ntri  %ld\n", ntri);
+                    printf("- extracts time: %10.2f sec\n", extracts);
+                    printf("- selects time: %10.2f sec\n", selects);
+                    printf("- multip1 time: %10.2f sec\n", multip1);
+                    printf("- multip2 time: %10.2f sec\n", multip2);
+                    selects = 0.0; extracts = 0.0; multip1 = 0.0; multip2 = 0.0;
+                }
 //                GrB_free(&mask);
                 GrB_free(&a1);
                 GrB_free(&a12);
@@ -322,6 +362,7 @@ GrB_Info LAGraph_tricount   // count # of triangles
             }
 //            GrB_free(&extraction_desc1);
 //            GrB_free(&extraction_desc2);
+            GrB_free(&desc);
             GrB_free(&s1);
             GrB_free(&s2);
             t [0] = LAGraph_toc (tic) ;
