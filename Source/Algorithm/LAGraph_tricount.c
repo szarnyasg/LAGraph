@@ -102,6 +102,16 @@
 
 #include "LAGraph_internal.h"
 
+static bool select_index_smaller_than (GrB_Index i, GrB_Index j, GrB_Index nrows, GrB_Index ncols, const void *x, const void *thunk)
+{
+    return i < *((uint64_t*) thunk);
+}
+
+static bool select_index_greater_than (GrB_Index i, GrB_Index j, GrB_Index nrows, GrB_Index ncols, const void *x, const void *thunk)
+{
+    return i > *((uint64_t*) thunk);
+}
+
 //------------------------------------------------------------------------------
 // LAGraph_tricount: count the number of triangles in a graph
 //------------------------------------------------------------------------------
@@ -236,40 +246,59 @@ GrB_Info LAGraph_tricount   // count # of triangles
 
             ntri = 0;
 
-            GrB_Descriptor extraction_desc1, extraction_desc2;
-            GrB_Descriptor_new(&extraction_desc1);
-            GrB_Descriptor_new(&extraction_desc2);
-            // we can assume the input is transposed for symmetric matrices
-            GrB_Descriptor_set(extraction_desc1, GrB_INP0, GrB_TRAN);
-            GrB_Descriptor_set(extraction_desc2, GrB_INP0, GrB_TRAN);
-            GrB_Descriptor_set(extraction_desc2, GrB_MASK, GrB_SCMP);
+//            GrB_Descriptor extraction_desc1, extraction_desc2;
+//            GrB_Descriptor_new(&extraction_desc1);
+//            GrB_Descriptor_new(&extraction_desc2);
+//            // we can assume the input is transposed for symmetric matrices
+//            GrB_Descriptor_set(extraction_desc1, GrB_INP0, GrB_TRAN);
+//            GrB_Descriptor_set(extraction_desc2, GrB_INP0, GrB_TRAN);
+//            GrB_Descriptor_set(extraction_desc2, GrB_MASK, GrB_SCMP);
+
+            GxB_SelectOp s1, s2;
+            GxB_SelectOp_new (&s1, select_index_smaller_than, GrB_UINT64, GrB_UINT64);
+            GxB_SelectOp_new (&s2, select_index_greater_than, GrB_UINT64, GrB_UINT64);
 
             #pragma omp parallel for schedule (dynamic) reduction (+: ntri)
             for (GrB_Index i = 1; i < n-1; i++) {
-                GrB_Vector mask, a10, a12, tmp, delta_vec;
+                GrB_Vector a1, a10, a12, tmp, delta_vec;
 
+                GrB_Vector_new(&a1, GrB_UINT64, n);
                 GrB_Vector_new(&a10, GrB_UINT64, n);
                 GrB_Vector_new(&a12, GrB_UINT64, n);
                 GrB_Vector_new(&tmp, GrB_UINT64, n);
                 GrB_Vector_new(&delta_vec, GrB_UINT64, 1);
 
-                // indices: 0      i      n-1
-                //    mask: 11...1 0 00...0
-                //   !mask: 00...0 1 11...1
-                // (A[i,i] = 0, so !mask[i] = 1 is not a problem)
-                GrB_Vector_new(&mask, GrB_UINT64, n);
-                for (GrB_Index j = 0; j < n; j++) {
-                    if (j < i) GrB_Vector_setElement(mask, 1, j);
-                }
+                // solution 1
+//                // indices: 0      i      n-1
+//                //    mask: 11...1 0 00...0
+//                //   !mask: 00...0 1 11...1
+//                // (A[i,i] = 0, so !mask[i] = 1 is not a problem)
+//                GrB_Vector mask;
+//                GrB_Vector_new(&mask, GrB_UINT64, n);
+//                for (GrB_Index j = 0; j < n; j++) {
+//                    if (j < i) GrB_Vector_setElement(mask, 1, j);
+//                }
+//                // use the masks when extracting vectors
+//                GrB_Col_extract(a10, mask, GrB_NULL, A, GrB_ALL, n, i, extraction_desc1);
+//                GrB_Col_extract(a12, mask, GrB_NULL, A, GrB_ALL, n, i, extraction_desc2);
 
-                // use the masks when extracting vectors
-                GrB_Col_extract(a10, mask, GrB_NULL, A, GrB_ALL, n, i, extraction_desc1);
-                GrB_Col_extract(a12, mask, GrB_NULL, A, GrB_ALL, n, i, extraction_desc2);
+                // solution2
+                // a1 = A[:,i] = A[i,:]
+                GrB_Col_extract(a1, GrB_NULL, GrB_NULL, A, GrB_ALL, n, i, GrB_NULL);
+
+                GxB_Scalar thunk;
+                GxB_Scalar_new (&thunk, GrB_UINT64);
+                GxB_Scalar_setElement (thunk, i);
+
+                GxB_select(a10, GrB_NULL, GrB_NULL, s1, a1, thunk, GrB_NULL);
+                GxB_select(a12, GrB_NULL, GrB_NULL, s2, a1, thunk, GrB_NULL);
+
+                GrB_free(&thunk);
 
                 // compute delta = a12' * A20 * a10
-                // tmp = a12' * A20
+                // tmp' = a12' * A20
                 GrB_vxm(tmp, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
-                // delta_vec = a10 * tmp
+                // delta_vec = tmp' * a10
                 GrB_vxm(delta_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
 
                 // extract single element from 1-length delta_vec
@@ -284,14 +313,17 @@ GrB_Info LAGraph_tricount   // count # of triangles
 //                    printf("- delta %ld\n", delta);
 //                    printf("- ntri  %ld\n", ntri);
 //                }
-                GrB_free(&mask);
+//                GrB_free(&mask);
+                GrB_free(&a1);
                 GrB_free(&a12);
                 GrB_free(&a10);
                 GrB_free(&tmp);
                 GrB_free(&delta_vec);
             }
-            GrB_free(&extraction_desc1);
-            GrB_free(&extraction_desc2);
+//            GrB_free(&extraction_desc1);
+//            GrB_free(&extraction_desc2);
+            GrB_free(&s1);
+            GrB_free(&s2);
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
             break ;
@@ -310,4 +342,3 @@ GrB_Info LAGraph_tricount   // count # of triangles
     (*p_ntri) = ntri ;
     return (GrB_SUCCESS) ;
 }
-
