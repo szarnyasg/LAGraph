@@ -155,7 +155,7 @@ int main (int argc, char **argv)
         // ignore the sanitize time;  assume the user could have provided an
         // input graph that is already binary with no self-edges
         double timing [2] ;
-        LAGRAPH_OK (LAGraph_tricount(&ntri, 7, A, GrB_NULL, GrB_NULL, GrB_NULL, timing)) ;
+        LAGRAPH_OK (LAGraph_tricount(&ntri, 12, A, GrB_NULL, GrB_NULL, GrB_NULL, timing)) ;
         double t = timing [1] ;
 
         fprintf (out, "Total number of triangles: %ld\n", ntri);

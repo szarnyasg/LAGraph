@@ -5,19 +5,19 @@
 /*
     LAGraph:  graph algorithms based on GraphBLAS
 
-    Copyright 2019 LAGraph Contributors.
+    Copyright 2019 LAGraph Contri_totalbutors.
 
-    (see Contributors.txt for a full list of Contributors; see
-    ContributionInstructions.txt for information on how you can Contribute to
+    (see Contri_totalbutors.txt for a full list of Contri_totalbutors; see
+    Contri_totalbutionInstructions.txt for information on how you can Contri_totalbute to
     this project).
 
     All Rights Reserved.
 
     NO WARRANTY. THIS MATERIAL IS FURNISHED ON AN "AS-IS" BASIS. THE LAGRAPH
-    CONTRIBUTORS MAKE NO WARRANTIES OF ANY KIND, EITHER EXPRESSED OR IMPLIED,
+    COntri_totalBUTORS MAKE NO WARRANTIES OF ANY KIND, EITHER EXPRESSED OR IMPLIED,
     AS TO ANY MATTER INCLUDING, BUT NOT LIMITED TO, WARRANTY OF FITNESS FOR
     PURPOSE OR MERCHANTABILITY, EXCLUSIVITY, OR RESULTS OBTAINED FROM USE OF
-    THE MATERIAL. THE CONTRIBUTORS DO NOT MAKE ANY WARRANTY OF ANY KIND WITH
+    THE MATERIAL. THE COntri_totalBUTORS DO NOT MAKE ANY WARRANTY OF ANY KIND WITH
     RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT INFRINGEMENT.
 
     Released under a BSD license, please see the LICENSE file distributed with
@@ -35,7 +35,7 @@
 //------------------------------------------------------------------------------
 
 // LAGraph_tricount: count the number of triangles in a graph,
-// Contributed by Tim Davis, Texas A&M.
+// Contri_totalbuted by Tim Davis, Texas A&M.
 
 // Given a symmetric binary graph A with no-self edges, LAGraph_tricount counts
 // the exact number of triangles in the graph.  A triangle is a clique of size
@@ -44,15 +44,15 @@
 // On input, the L and U matrices are the strictly lower and strictly upper
 // triangular parts of the symmetrix matrix A, respectively.
 
-// One of 6 methods are used.  Each computes the same result, ntri:
+// One of 6 methods are used.  Each computes the same result, ntri_total:
 
-//  0:  minitri:    ntri = nnz (A*E == 2) / 3
-//  1:  Burkhardt:  ntri = sum (sum ((A^2) .* A)) / 6
-//  2:  Cohen:      ntri = sum (sum ((L * U) .* A)) / 2
-//  3:  Sandia:     ntri = sum (sum ((L * L) .* L))
-//  4:  Sandia2:    ntri = sum (sum ((U * U) .* U))
-//  5:  SandiaDot:  ntri = sum (sum ((L * U') .* L)).  Note that L=U'.
-//  6:  SandiaDot2: ntri = sum (sum ((U * L') .* U))
+//  0:  minitri:    ntri_total = nnz (A*E == 2) / 3
+//  1:  Burkhardt:  ntri_total = sum (sum ((A^2) .* A)) / 6
+//  2:  Cohen:      ntri_total = sum (sum ((L * U) .* A)) / 2
+//  3:  Sandia:     ntri_total = sum (sum ((L * L) .* L))
+//  4:  Sandia2:    ntri_total = sum (sum ((U * U) .* U))
+//  5:  SandiaDot:  ntri_total = sum (sum ((L * U') .* L)).  Note that L=U'.
+//  6:  SandiaDot2: ntri_total = sum (sum ((U * L') .* U))
 
 // TODO use an enum for the above methods.
 
@@ -118,7 +118,7 @@ static bool select_index_greater_than (GrB_Index i, GrB_Index j, GrB_Index nrows
 
 GrB_Info LAGraph_tricount   // count # of triangles
 (
-    int64_t *p_ntri,        // # of triangles
+    int64_t *p_ntri_total,        // # of triangles
     const int method,       // 0 to 5, see above
     const GrB_Matrix A,     // adjacency matrix for methods 0, 1, and 2
     const GrB_Matrix E,     // edge incidence matrix for method 0
@@ -135,7 +135,7 @@ GrB_Info LAGraph_tricount   // count # of triangles
     double tic [2] ;
     LAGraph_tic (tic) ;
     GrB_Info info ;
-    int64_t ntri ;
+    int64_t ntri_total ;
     GrB_Index n, ne ;
     GrB_Matrix S = NULL, C = NULL ;
 
@@ -145,7 +145,7 @@ GrB_Info LAGraph_tricount   // count # of triangles
 
     switch (method)
     {
-        case 0:  // minitri:    ntri = nnz (A*E == 2) / 3
+        case 0:  // minitri:    ntri_total = nnz (A*E == 2) / 3
 
             LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
             LAGRAPH_OK (GrB_Matrix_ncols (&ne, E)) ;
@@ -157,12 +157,12 @@ GrB_Info LAGraph_tricount   // count # of triangles
             LAGRAPH_OK (GrB_Matrix_new (&S, GrB_BOOL, n, ne)) ;
             LAGRAPH_OK (GrB_apply (S, NULL, NULL, LAGraph_ISTWO_INT64,
                 C, NULL)) ;
-            LAGRAPH_OK (GrB_reduce (&ntri, NULL, LAGraph_PLUS_INT64_MONOID,
+            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
                 S, NULL)) ;
-            ntri /= 3 ;
+            ntri_total /= 3 ;
             break ;
 
-        case 1:  // Burkhardt:  ntri = sum (sum ((A^2) .* A)) / 6
+        case 1:  // Burkhardt:  ntri_total = sum (sum ((A^2) .* A)) / 6
 
             LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
             LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
@@ -170,12 +170,12 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 A, A, NULL)) ;
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri, NULL, LAGraph_PLUS_INT64_MONOID,
+            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
                 C, NULL)) ;
-            ntri /= 6 ;
+            ntri_total /= 6 ;
             break ;
 
-        case 2:  // Cohen:      ntri = sum (sum ((L * U) .* A)) / 2
+        case 2:  // Cohen:      ntri_total = sum (sum ((L * U) .* A)) / 2
 
             LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
             LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
@@ -183,12 +183,12 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 L, U, NULL)) ;
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri, NULL, LAGraph_PLUS_INT64_MONOID,
+            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
                 C, NULL)) ;
-            ntri /= 2 ;
+            ntri_total /= 2 ;
             break ;
 
-        case 3:  // Sandia:    ntri = sum (sum ((L * L) .* L))
+        case 3:  // Sandia:    ntri_total = sum (sum ((L * L) .* L))
 
             LAGRAPH_OK (GrB_Matrix_nrows (&n, L)) ;
             LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
@@ -196,11 +196,11 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 L, L, NULL)) ;
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri, NULL, LAGraph_PLUS_INT64_MONOID,
+            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
                 C, NULL)) ;
             break ;
 
-        case 4:  // Sandia2:    ntri = sum (sum ((U * U) .* U))
+        case 4:  // Sandia2:    ntri_total = sum (sum ((U * U) .* U))
 
             LAGRAPH_OK (GrB_Matrix_nrows (&n, U)) ;
             LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
@@ -208,11 +208,11 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 U, U, NULL)) ;
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri, NULL, LAGraph_PLUS_INT64_MONOID,
+            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
                 C, NULL)) ;
             break ;
 
-        case 5:  // SandiaDot:  ntri = sum (sum ((L * U') .* L))
+        case 5:  // SandiaDot:  ntri_total = sum (sum ((L * U') .* L))
 
             LAGRAPH_OK (GrB_Matrix_nrows (&n, U)) ;
             LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
@@ -220,11 +220,11 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 L, U, LAGraph_desc_otoo)) ;
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri, NULL, LAGraph_PLUS_INT64_MONOID,
+            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
                 C, NULL)) ;
             break ;
 
-        case 6:  // SandiaDot2: ntri = sum (sum ((U * L') .* U))
+        case 6:  // SandiaDot2: ntri_total = sum (sum ((U * L') .* U))
 
             LAGRAPH_OK (GrB_Matrix_nrows (&n, U)) ;
             LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
@@ -232,11 +232,21 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 U, L, LAGraph_desc_otoo)) ;
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri, NULL, LAGraph_PLUS_INT64_MONOID,
+            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
                 C, NULL)) ;
             break ;
 
-        case 7:  // Low et al: triangle counting without matrix multiplication (HPEC'17)
+        case 11:
+            // Algorithm 1 in Lee and Low's CORRECTNESS 2017 paper:
+            //   "A Family of Provably Correct Algorithms for Exact Triangle Counting"
+            // TODO
+            break ;
+
+        case 12:
+            // Algorithm 2 in Lee and Low's CORRECTNESS 2017 paper:
+            //   "A Family of Provably Correct Algorithms for Exact Triangle Counting"
+            // Also presented in Low et al.'s HPEC 2017 paper,
+            //   "First Lok: Linear Algebra-Based Triangle Counting without Matrix Multiplication"
             LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
 
             GrB_Index* indices = LAGraph_malloc(n, sizeof(GrB_Index));
@@ -244,7 +254,7 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 indices[i] = i;
             }
 
-            ntri = 0;
+            ntri_total = 0;
 
 //            GrB_Descriptor extraction_desc1, extraction_desc2;
 //            GrB_Descriptor_new(&extraction_desc1);
@@ -263,15 +273,15 @@ GrB_Info LAGraph_tricount   // count # of triangles
             GxB_SelectOp_new (&s2, select_index_greater_than, GrB_UINT64, GrB_UINT64);
 
             double extracts = 0.0, selects = 0.0, multip1 = 0.0, multip2;
-            //#pragma omp parallel for schedule (dynamic) reduction (+: ntri)
+            //#pragma omp parallel for schedule (dynamic) reduction (+: ntri_total)
             for (GrB_Index i = 1; i < n-1; i++) {
-                GrB_Vector a1, a10, a12, tmp, delta_vec;
+                GrB_Vector a1, a10, a12, tmp, ntri_iter_vec;
 
                 GrB_Vector_new(&a1, GrB_UINT64, n);
                 GrB_Vector_new(&a10, GrB_UINT64, n);
                 GrB_Vector_new(&a12, GrB_UINT64, n);
                 GrB_Vector_new(&tmp, GrB_UINT64, n);
-                GrB_Vector_new(&delta_vec, GrB_UINT64, 1);
+                GrB_Vector_new(&ntri_iter_vec, GrB_UINT64, 1);
 
                 // solution 1
 //                // indices: 0      i      n-1
@@ -306,17 +316,17 @@ GrB_Info LAGraph_tricount   // count # of triangles
 
                 GrB_free(&thunk);
 
-//                // compute delta = a12' * A20 * a10
+//                // compute ntri_iter = a12' * A20 * a10
 //                // tmp' = a12' * A20
 //                GrB_vxm(tmp, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
-//                // delta_vec = tmp' * a10
-//                GrB_vxm(delta_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
+//                // ntri_iter_vec = tmp' * a10
+//                GrB_vxm(ntri_iter_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
 //
-//                // compute delta = a12' * A20 * a10
-//                // extract single element from 1-length delta_vec
-//                GrB_Info info2 = GrB_Vector_extractElement(&delta, delta_vec, 0);
+//                // compute ntri_iter = a12' * A20 * a10
+//                // extract single element from 1-length ntri_iter_vec
+//                GrB_Info info2 = GrB_Vector_extractElement(&ntri_iter, ntri_iter_vec, 0);
 //                if (info2 == GrB_SUCCESS) {
-//                    ntri += delta;
+//                    ntri_total += ntri_iter;
 //                }
 
                 double tic3 [2] ;
@@ -327,26 +337,26 @@ GrB_Info LAGraph_tricount   // count # of triangles
 
                 double tic4 [2] ;
                 LAGraph_tic (tic4) ;
-                // delta_vec = tmp' * a10
-                GrB_vxm(delta_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
+                // ntri_iter_vec = tmp' * a10
+                GrB_vxm(ntri_iter_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
                 multip2+=LAGraph_toc (tic4);
 
-                // compute delta = a12' * A20 * a10
-                // extract single element from 1-length delta_vec
-                uint64_t delta;
-                GrB_Info info2 = GrB_Vector_extractElement(&delta, delta_vec, 0);
+                // extract single element ntri_iter (the number of triangles in this iteration)
+                // from the 1-length vector ntri_iter_vec
+                uint64_t ntri_iter;
+                GrB_Info info2 = GrB_Vector_extractElement(&ntri_iter, ntri_iter_vec, 0);
                 if (info2 == GrB_SUCCESS) {
-                    ntri += delta;
+                    ntri_total += ntri_iter;
                 }
 
-//                uint64_t delta;
-//                GrB_reduce(&delta, GrB_NULL, GrB_NULL, GxB_PLUS_UINT64_MONOID, tmp, GrB_NULL);
-//                ntri += delta;
+//                uint64_t ntri_iter;
+//                GrB_reduce(&ntri_iter, GrB_NULL, GrB_NULL, GxB_PLUS_UINT64_MONOID, tmp, GrB_NULL);
+//                ntri_total += ntri_iter;
 
                 if (i % 10000 == 0) {
                     printf("loop: %ld\n", i);
-                    printf("- delta %ld\n", delta);
-                    printf("- ntri  %ld\n", ntri);
+                    printf("- ntri_iter %ld\n", ntri_iter);
+                    printf("- ntri_total  %ld\n", ntri_total);
                     printf("- extracts time: %10.2f sec\n", extracts);
                     printf("- selects time: %10.2f sec\n", selects);
                     printf("- multip1 time: %10.2f sec\n", multip1);
@@ -358,7 +368,7 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 GrB_free(&a12);
                 GrB_free(&a10);
                 GrB_free(&tmp);
-                GrB_free(&delta_vec);
+                GrB_free(&ntri_iter_vec);
             }
 //            GrB_free(&extraction_desc1);
 //            GrB_free(&extraction_desc2);
@@ -367,6 +377,12 @@ GrB_Info LAGraph_tricount   // count # of triangles
             GrB_free(&s2);
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
+            break ;
+
+        case 14:
+            // Algorithm 1 in Lee and Low's CORRECTNESS 2017 paper:
+            //   "A Family of Provably Correct Algorithms for Exact Triangle Counting"
+            // TODO
             break ;
 
         default:    // invalid method
@@ -380,6 +396,6 @@ GrB_Info LAGraph_tricount   // count # of triangles
 
     LAGRAPH_FREE_ALL ;
     t [1] = LAGraph_toc (tic) ;
-    (*p_ntri) = ntri ;
+    (*p_ntri_total) = ntri_total ;
     return (GrB_SUCCESS) ;
 }
