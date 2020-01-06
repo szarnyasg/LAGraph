@@ -143,110 +143,101 @@ GrB_Info LAGraph_tricount   // count # of triangles
     // count triangles
     //--------------------------------------------------------------------------
 
-    switch (method)
-    {
+    switch (method) {
         case 0:  // minitri:    ntri_total = nnz (A*E == 2) / 3
 
-            LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
-            LAGRAPH_OK (GrB_Matrix_ncols (&ne, E)) ;
-            LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, ne)) ;
-            LAGRAPH_OK (GrB_mxm (C, NULL, NULL, LAGraph_PLUS_TIMES_INT64,
-                A, E, NULL)) ;
-            t [0] = LAGraph_toc (tic) ;
-            LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_Matrix_new (&S, GrB_BOOL, n, ne)) ;
-            LAGRAPH_OK (GrB_apply (S, NULL, NULL, LAGraph_ISTWO_INT64,
-                C, NULL)) ;
-            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
-                S, NULL)) ;
-            ntri_total /= 3 ;
-            break ;
+        LAGRAPH_OK (GrB_Matrix_nrows(&n, A));
+            LAGRAPH_OK (GrB_Matrix_ncols(&ne, E));
+            LAGRAPH_OK (GrB_Matrix_new(&C, GrB_INT64, n, ne));
+            LAGRAPH_OK (GrB_mxm(C, NULL, NULL, LAGraph_PLUS_TIMES_INT64,
+                                A, E, NULL));
+            t[0] = LAGraph_toc(tic);
+            LAGraph_tic(tic);
+            LAGRAPH_OK (GrB_Matrix_new(&S, GrB_BOOL, n, ne));
+            LAGRAPH_OK (GrB_apply(S, NULL, NULL, LAGraph_ISTWO_INT64,
+                                  C, NULL));
+            LAGRAPH_OK (GrB_reduce(&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
+                                   S, NULL));
+            ntri_total /= 3;
+            break;
 
         case 1:  // Burkhardt:  ntri_total = sum (sum ((A^2) .* A)) / 6
 
-            LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
-            LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
-            LAGRAPH_OK (GrB_mxm (C, A, NULL, LAGraph_PLUS_TIMES_INT64,
-                A, A, NULL)) ;
-            t [0] = LAGraph_toc (tic) ;
-            LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
-                C, NULL)) ;
-            ntri_total /= 6 ;
-            break ;
+        LAGRAPH_OK (GrB_Matrix_nrows(&n, A));
+            LAGRAPH_OK (GrB_Matrix_new(&C, GrB_INT64, n, n));
+            LAGRAPH_OK (GrB_mxm(C, A, NULL, LAGraph_PLUS_TIMES_INT64,
+                                A, A, NULL));
+            t[0] = LAGraph_toc(tic);
+            LAGraph_tic(tic);
+            LAGRAPH_OK (GrB_reduce(&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
+                                   C, NULL));
+            ntri_total /= 6;
+            break;
 
         case 2:  // Cohen:      ntri_total = sum (sum ((L * U) .* A)) / 2
 
-            LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
-            LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
-            LAGRAPH_OK (GrB_mxm (C, A, NULL, LAGraph_PLUS_TIMES_INT64,
-                L, U, NULL)) ;
-            t [0] = LAGraph_toc (tic) ;
-            LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
-                C, NULL)) ;
-            ntri_total /= 2 ;
-            break ;
+        LAGRAPH_OK (GrB_Matrix_nrows(&n, A));
+            LAGRAPH_OK (GrB_Matrix_new(&C, GrB_INT64, n, n));
+            LAGRAPH_OK (GrB_mxm(C, A, NULL, LAGraph_PLUS_TIMES_INT64,
+                                L, U, NULL));
+            t[0] = LAGraph_toc(tic);
+            LAGraph_tic(tic);
+            LAGRAPH_OK (GrB_reduce(&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
+                                   C, NULL));
+            ntri_total /= 2;
+            break;
 
         case 3:  // Sandia:    ntri_total = sum (sum ((L * L) .* L))
 
-            LAGRAPH_OK (GrB_Matrix_nrows (&n, L)) ;
-            LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
-            LAGRAPH_OK (GrB_mxm (C, L, NULL, LAGraph_PLUS_TIMES_INT64,
-                L, L, NULL)) ;
-            t [0] = LAGraph_toc (tic) ;
-            LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
-                C, NULL)) ;
-            break ;
+        LAGRAPH_OK (GrB_Matrix_nrows(&n, L));
+            LAGRAPH_OK (GrB_Matrix_new(&C, GrB_INT64, n, n));
+            LAGRAPH_OK (GrB_mxm(C, L, NULL, LAGraph_PLUS_TIMES_INT64,
+                                L, L, NULL));
+            t[0] = LAGraph_toc(tic);
+            LAGraph_tic(tic);
+            LAGRAPH_OK (GrB_reduce(&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
+                                   C, NULL));
+            break;
 
         case 4:  // Sandia2:    ntri_total = sum (sum ((U * U) .* U))
 
-            LAGRAPH_OK (GrB_Matrix_nrows (&n, U)) ;
-            LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
-            LAGRAPH_OK (GrB_mxm (C, U, NULL, LAGraph_PLUS_TIMES_INT64,
-                U, U, NULL)) ;
-            t [0] = LAGraph_toc (tic) ;
-            LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
-                C, NULL)) ;
-            break ;
+        LAGRAPH_OK (GrB_Matrix_nrows(&n, U));
+            LAGRAPH_OK (GrB_Matrix_new(&C, GrB_INT64, n, n));
+            LAGRAPH_OK (GrB_mxm(C, U, NULL, LAGraph_PLUS_TIMES_INT64,
+                                U, U, NULL));
+            t[0] = LAGraph_toc(tic);
+            LAGraph_tic(tic);
+            LAGRAPH_OK (GrB_reduce(&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
+                                   C, NULL));
+            break;
 
         case 5:  // SandiaDot:  ntri_total = sum (sum ((L * U') .* L))
 
-            LAGRAPH_OK (GrB_Matrix_nrows (&n, U)) ;
-            LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
-            LAGRAPH_OK (GrB_mxm (C, L, NULL, LAGraph_PLUS_TIMES_INT64,
-                L, U, LAGraph_desc_otoo)) ;
-            t [0] = LAGraph_toc (tic) ;
-            LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
-                C, NULL)) ;
-            break ;
+        LAGRAPH_OK (GrB_Matrix_nrows(&n, U));
+            LAGRAPH_OK (GrB_Matrix_new(&C, GrB_INT64, n, n));
+            LAGRAPH_OK (GrB_mxm(C, L, NULL, LAGraph_PLUS_TIMES_INT64,
+                                L, U, LAGraph_desc_otoo));
+            t[0] = LAGraph_toc(tic);
+            LAGraph_tic(tic);
+            LAGRAPH_OK (GrB_reduce(&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
+                                   C, NULL));
+            break;
 
         case 6:  // SandiaDot2: ntri_total = sum (sum ((U * L') .* U))
 
-            LAGRAPH_OK (GrB_Matrix_nrows (&n, U)) ;
-            LAGRAPH_OK (GrB_Matrix_new (&C, GrB_INT64, n, n)) ;
-            LAGRAPH_OK (GrB_mxm (C, U, NULL, LAGraph_PLUS_TIMES_INT64,
-                U, L, LAGraph_desc_otoo)) ;
-            t [0] = LAGraph_toc (tic) ;
-            LAGraph_tic (tic) ;
-            LAGRAPH_OK (GrB_reduce (&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
-                C, NULL)) ;
-            break ;
+        LAGRAPH_OK (GrB_Matrix_nrows(&n, U));
+            LAGRAPH_OK (GrB_Matrix_new(&C, GrB_INT64, n, n));
+            LAGRAPH_OK (GrB_mxm(C, U, NULL, LAGraph_PLUS_TIMES_INT64,
+                                U, L, LAGraph_desc_otoo));
+            t[0] = LAGraph_toc(tic);
+            LAGraph_tic(tic);
+            LAGRAPH_OK (GrB_reduce(&ntri_total, NULL, LAGraph_PLUS_INT64_MONOID,
+                                   C, NULL));
+            break;
 
-        case 11:
+        case 11: {
             // Algorithm 1 in Lee and Low's CORRECTNESS 2017 paper:
             //   "A Family of Provably Correct Algorithms for Exact Triangle Counting"
-            // TODO
-            break ;
-
-        case 12:
-            // Algorithm 2 in Lee and Low's CORRECTNESS 2017 paper:
-            //   "A Family of Provably Correct Algorithms for Exact Triangle Counting"
-            // Also presented in Low et al.'s HPEC 2017 paper,
-            //   "First Lok: Linear Algebra-Based Triangle Counting without Matrix Multiplication"
             LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
 
             GrB_Index* indices = LAGraph_malloc(n, sizeof(GrB_Index));
@@ -256,48 +247,23 @@ GrB_Info LAGraph_tricount   // count # of triangles
 
             ntri_total = 0;
 
-//            GrB_Descriptor extraction_desc1, extraction_desc2;
-//            GrB_Descriptor_new(&extraction_desc1);
-//            GrB_Descriptor_new(&extraction_desc2);
-//            // we can assume the input is transposed for symmetric matrices
-//            GrB_Descriptor_set(extraction_desc1, GrB_INP0, GrB_TRAN);
-//            GrB_Descriptor_set(extraction_desc2, GrB_INP0, GrB_TRAN);
-//            GrB_Descriptor_set(extraction_desc2, GrB_MASK, GrB_SCMP);
-
             GrB_Descriptor desc;
             GrB_Descriptor_new(&desc);
             GrB_Descriptor_set(desc, GrB_INP0, GrB_TRAN);
 
-            GxB_SelectOp s1, s2;
-            GxB_SelectOp_new (&s1, select_index_smaller_than, GrB_UINT64, GrB_UINT64);
-            GxB_SelectOp_new (&s2, select_index_greater_than, GrB_UINT64, GrB_UINT64);
+            GxB_SelectOp s;
+            GxB_SelectOp_new (&s, select_index_smaller_than, GrB_UINT64, GrB_UINT64);
 
             double extracts = 0.0, selects = 0.0, multip1 = 0.0, multip2;
             //#pragma omp parallel for schedule (dynamic) reduction (+: ntri_total)
-            for (GrB_Index i = 1; i < n-1; i++) {
-                GrB_Vector a1, a10, a12, tmp, ntri_iter_vec;
+            for (GrB_Index i = 0; i < n-1; i++) {
+                GrB_Vector a1, a01, tmp, ntri_iter_vec;
 
                 GrB_Vector_new(&a1, GrB_UINT64, n);
-                GrB_Vector_new(&a10, GrB_UINT64, n);
-                GrB_Vector_new(&a12, GrB_UINT64, n);
+                GrB_Vector_new(&a01, GrB_UINT64, n);
                 GrB_Vector_new(&tmp, GrB_UINT64, n);
                 GrB_Vector_new(&ntri_iter_vec, GrB_UINT64, 1);
 
-                // solution 1
-//                // indices: 0      i      n-1
-//                //    mask: 11...1 0 00...0
-//                //   !mask: 00...0 1 11...1
-//                // (A[i,i] = 0, so !mask[i] = 1 is not a problem)
-//                GrB_Vector mask;
-//                GrB_Vector_new(&mask, GrB_UINT64, n);
-//                for (GrB_Index j = 0; j < n; j++) {
-//                    if (j < i) GrB_Vector_setElement(mask, 1, j);
-//                }
-//                // use the masks when extracting vectors
-//                GrB_Col_extract(a10, mask, GrB_NULL, A, GrB_ALL, n, i, extraction_desc1);
-//                GrB_Col_extract(a12, mask, GrB_NULL, A, GrB_ALL, n, i, extraction_desc2);
-
-                // solution2
                 // a1 = A[:,i] = A[i,:]
                 double tic1[2] ;
                 LAGraph_tic (tic1) ;
@@ -310,35 +276,21 @@ GrB_Info LAGraph_tricount   // count # of triangles
 
                 double tic2 [2] ;
                 LAGraph_tic (tic2) ;
-                GxB_select(a10, GrB_NULL, GrB_NULL, s1, a1, thunk, GrB_NULL);
-                GxB_select(a12, GrB_NULL, GrB_NULL, s2, a1, thunk, GrB_NULL);
+                GxB_select(a01, GrB_NULL, GrB_NULL, s, a1, thunk, GrB_NULL);
                 selects+=LAGraph_toc (tic2);
 
                 GrB_free(&thunk);
 
-//                // compute ntri_iter = a12' * A20 * a10
-//                // tmp' = a12' * A20
-//                GrB_vxm(tmp, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
-//                // ntri_iter_vec = tmp' * a10
-//                GrB_vxm(ntri_iter_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
-//
-//                // compute ntri_iter = a12' * A20 * a10
-//                // extract single element from 1-length ntri_iter_vec
-//                GrB_Info info2 = GrB_Vector_extractElement(&ntri_iter, ntri_iter_vec, 0);
-//                if (info2 == GrB_SUCCESS) {
-//                    ntri_total += ntri_iter;
-//                }
-
                 double tic3 [2] ;
                 LAGraph_tic (tic3) ;
-                // tmp<a10> = a12 * A20
-                GrB_vxm(tmp, a10, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
+                // tmp<a01> = a01 * A (this implicitly selects submatrix A00 from A)
+                GrB_vxm(tmp, a01, GrB_NULL, GxB_PLUS_TIMES_UINT64, a01, A, GrB_NULL);
                 multip1+=LAGraph_toc (tic3);
 
                 double tic4 [2] ;
                 LAGraph_tic (tic4) ;
-                // ntri_iter_vec = tmp' * a10
-                GrB_vxm(ntri_iter_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a10, GrB_NULL);
+                // ntri_iter_vec = tmp * a01
+                GrB_vxm(ntri_iter_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a01, GrB_NULL);
                 multip2+=LAGraph_toc (tic4);
 
                 // extract single element ntri_iter (the number of triangles in this iteration)
@@ -346,14 +298,13 @@ GrB_Info LAGraph_tricount   // count # of triangles
                 uint64_t ntri_iter;
                 GrB_Info info2 = GrB_Vector_extractElement(&ntri_iter, ntri_iter_vec, 0);
                 if (info2 == GrB_SUCCESS) {
-                    ntri_total += ntri_iter;
+                    ntri_total += ntri_iter / 2;
+                } else {
+                    ntri_iter = 0;
                 }
 
-//                uint64_t ntri_iter;
-//                GrB_reduce(&ntri_iter, GrB_NULL, GrB_NULL, GxB_PLUS_UINT64_MONOID, tmp, GrB_NULL);
-//                ntri_total += ntri_iter;
-
-                if (i % 10000 == 0) {
+                if (i % 10000 == 0)
+                {
                     printf("loop: %ld\n", i);
                     printf("- ntri_iter %ld\n", ntri_iter);
                     printf("- ntri_total  %ld\n", ntri_total);
@@ -363,27 +314,208 @@ GrB_Info LAGraph_tricount   // count # of triangles
                     printf("- multip2 time: %10.2f sec\n", multip2);
                     selects = 0.0; extracts = 0.0; multip1 = 0.0; multip2 = 0.0;
                 }
-//                GrB_free(&mask);
                 GrB_free(&a1);
-                GrB_free(&a12);
-                GrB_free(&a10);
+                GrB_free(&a01);
                 GrB_free(&tmp);
                 GrB_free(&ntri_iter_vec);
             }
-//            GrB_free(&extraction_desc1);
-//            GrB_free(&extraction_desc2);
             GrB_free(&desc);
-            GrB_free(&s1);
-            GrB_free(&s2);
+            GrB_free(&s);
             t [0] = LAGraph_toc (tic) ;
             LAGraph_tic (tic) ;
             break ;
+        }
 
-        case 14:
-            // Algorithm 1 in Lee and Low's CORRECTNESS 2017 paper:
+        case 12: {
+            // Algorithm 2 in Lee and Low's CORRECTNESS 2017 paper:
             //   "A Family of Provably Correct Algorithms for Exact Triangle Counting"
-            // TODO
+            // This algorithm was also presented in Low et al.'s HPEC 2017 paper,
+            //   "First Look: Linear Algebra-Based Triangle Counting without Matrix Multiplication"
+            LAGRAPH_OK (GrB_Matrix_nrows(&n, A));
+
+            GrB_Index *indices = LAGraph_malloc(n, sizeof(GrB_Index));
+            for (GrB_Index i = 0; i < n; i++) {
+                indices[i] = i;
+            }
+
+            ntri_total = 0;
+
+            GrB_Descriptor desc;
+            GrB_Descriptor_new(&desc);
+            GrB_Descriptor_set(desc, GrB_INP0, GrB_TRAN);
+
+            GxB_SelectOp s1, s2;
+            GxB_SelectOp_new (&s1, select_index_smaller_than, GrB_UINT64, GrB_UINT64);
+            GxB_SelectOp_new (&s2, select_index_greater_than, GrB_UINT64, GrB_UINT64);
+
+            double extracts = 0.0, selects = 0.0, multip1 = 0.0, multip2;
+            //#pragma omp parallel for schedule (dynamic) reduction (+: ntri_total)
+            for (GrB_Index i = 0; i < n-1; i++) {
+                GrB_Vector a1, a01, a12, tmp, ntri_iter_vec;
+
+                GrB_Vector_new(&a1, GrB_UINT64, n);
+                GrB_Vector_new(&a01, GrB_UINT64, n);
+                GrB_Vector_new(&a12, GrB_UINT64, n);
+                GrB_Vector_new(&tmp, GrB_UINT64, n);
+                GrB_Vector_new(&ntri_iter_vec, GrB_UINT64, 1);
+
+                // a1 = A[:,i] = A[i,:]
+                double tic1[2];
+                LAGraph_tic(tic1);
+                GrB_Col_extract(a1, GrB_NULL, GrB_NULL, A, GrB_ALL, n, i, desc);
+                extracts += LAGraph_toc(tic1);
+
+                GxB_Scalar thunk;
+                GxB_Scalar_new(&thunk, GrB_UINT64);
+                GxB_Scalar_setElement (thunk, i);
+
+                double tic2[2];
+                LAGraph_tic(tic2);
+                GxB_select(a01, GrB_NULL, GrB_NULL, s1, a1, thunk, GrB_NULL);
+                GxB_select(a12, GrB_NULL, GrB_NULL, s2, a1, thunk, GrB_NULL);
+                selects += LAGraph_toc(tic2);
+
+                GrB_free(&thunk);
+
+                double tic3[2];
+                LAGraph_tic(tic3);
+                // tmp<a01> = a12 * A20
+                GrB_vxm(tmp, a01, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
+                multip1 += LAGraph_toc(tic3);
+
+                double tic4[2];
+                LAGraph_tic(tic4);
+                // ntri_iter_vec = tmp * a01
+                GrB_vxm(ntri_iter_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a01, GrB_NULL);
+                multip2 += LAGraph_toc(tic4);
+
+                // extract single element ntri_iter (the number of triangles in this iteration)
+                // from the 1-length vector ntri_iter_vec
+                uint64_t ntri_iter;
+                GrB_Info info2 = GrB_Vector_extractElement(&ntri_iter, ntri_iter_vec, 0);
+                if (info2 == GrB_SUCCESS) {
+                    ntri_total += ntri_iter;
+                } else {
+                    ntri_iter = 0;
+                }
+
+                if (i % 10000 == 0) {
+                    printf("loop: %ld\n", i);
+                    printf("- ntri_iter %ld\n", ntri_iter);
+                    printf("- ntri_total  %ld\n", ntri_total);
+                    printf("- extracts time: %10.2f sec\n", extracts);
+                    printf("- selects time: %10.2f sec\n", selects);
+                    printf("- multip1 time: %10.2f sec\n", multip1);
+                    printf("- multip2 time: %10.2f sec\n", multip2);
+                    selects = 0.0;
+                    extracts = 0.0;
+                    multip1 = 0.0;
+                    multip2 = 0.0;
+                }
+                GrB_free(&a1);
+                GrB_free(&a12);
+                GrB_free(&a01);
+                GrB_free(&tmp);
+                GrB_free(&ntri_iter_vec);
+            }
+            GrB_free(&desc);
+            GrB_free(&s1);
+            GrB_free(&s2);
+            t[0] = LAGraph_toc(tic);
+            LAGraph_tic(tic);
+            break;
+        }
+
+        case 14: {
+            // Algorithm 4 in Lee and Low's CORRECTNESS 2017 paper:
+            //   "A Family of Provably Correct Algorithms for Exact Triangle Counting"
+            LAGRAPH_OK (GrB_Matrix_nrows (&n, A)) ;
+
+            GrB_Index* indices = LAGraph_malloc(n, sizeof(GrB_Index));
+            for (GrB_Index i = 0; i < n; i++) {
+                indices[i] = i;
+            }
+
+            ntri_total = 0;
+
+            GrB_Descriptor desc;
+            GrB_Descriptor_new(&desc);
+            GrB_Descriptor_set(desc, GrB_INP0, GrB_TRAN);
+
+            GxB_SelectOp s;
+            GxB_SelectOp_new (&s, select_index_greater_than, GrB_UINT64, GrB_UINT64);
+
+            double extracts = 0.0, selects = 0.0, multip1 = 0.0, multip2;
+            //#pragma omp parallel for schedule (dynamic) reduction (+: ntri_total)
+            for (GrB_Index i = 0; i < n-1; i++) {
+                GrB_Vector a1, a12, tmp, ntri_iter_vec;
+
+                GrB_Vector_new(&a1, GrB_UINT64, n);
+                GrB_Vector_new(&a12, GrB_UINT64, n);
+                GrB_Vector_new(&tmp, GrB_UINT64, n);
+                GrB_Vector_new(&ntri_iter_vec, GrB_UINT64, 1);
+
+                // a1 = A[:,i] = A[i,:]
+                double tic1[2] ;
+                LAGraph_tic (tic1) ;
+                GrB_Col_extract(a1, GrB_NULL, GrB_NULL, A, GrB_ALL, n, i, desc);
+                extracts+=LAGraph_toc (tic1);
+
+                GxB_Scalar thunk;
+                GxB_Scalar_new (&thunk, GrB_UINT64);
+                GxB_Scalar_setElement (thunk, i);
+
+                double tic2 [2] ;
+                LAGraph_tic (tic2) ;
+                GxB_select(a12, GrB_NULL, GrB_NULL, s, a1, thunk, GrB_NULL);
+                selects+=LAGraph_toc (tic2);
+
+                GrB_free(&thunk);
+
+                double tic3 [2] ;
+                LAGraph_tic (tic3) ;
+                // tmp<a12> = a12 * A (this implicitly selects submatrix A22 from A)
+                GrB_vxm(tmp, a12, GrB_NULL, GxB_PLUS_TIMES_UINT64, a12, A, GrB_NULL);
+                multip1+=LAGraph_toc (tic3);
+
+                double tic4 [2] ;
+                LAGraph_tic (tic4) ;
+                // ntri_iter_vec = tmp * a12
+                GrB_vxm(ntri_iter_vec, GrB_NULL, GrB_NULL, GxB_PLUS_TIMES_UINT64, tmp, a12, GrB_NULL);
+                multip2+=LAGraph_toc (tic4);
+
+                // extract single element ntri_iter (the number of triangles in this iteration)
+                // from the 1-length vector ntri_iter_vec
+                uint64_t ntri_iter;
+                GrB_Info info2 = GrB_Vector_extractElement(&ntri_iter, ntri_iter_vec, 0);
+                if (info2 == GrB_SUCCESS) {
+                    ntri_total += ntri_iter / 2;
+                } else {
+                    ntri_iter = 0;
+                }
+
+                if (i % 10000 == 0)
+                {
+                    printf("loop: %ld\n", i);
+                    printf("- ntri_iter %ld\n", ntri_iter);
+                    printf("- ntri_total  %ld\n", ntri_total);
+                    printf("- extracts time: %10.2f sec\n", extracts);
+                    printf("- selects time: %10.2f sec\n", selects);
+                    printf("- multip1 time: %10.2f sec\n", multip1);
+                    printf("- multip2 time: %10.2f sec\n", multip2);
+                    selects = 0.0; extracts = 0.0; multip1 = 0.0; multip2 = 0.0;
+                }
+                GrB_free(&a1);
+                GrB_free(&a12);
+                GrB_free(&tmp);
+                GrB_free(&ntri_iter_vec);
+            }
+            GrB_free(&desc);
+            GrB_free(&s);
+            t [0] = LAGraph_toc (tic) ;
+            LAGraph_tic (tic) ;
             break ;
+        }
 
         default:    // invalid method
 

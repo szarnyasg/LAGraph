@@ -25,3 +25,19 @@ add_test(
         COMMAND ttest7 ../../Data/ldbc-undirected-example.mtx
         WORKSPACE TriangleCount
 )
+
+
+add_executable(ttest7_medium TriangleCount/ttest7.c)
+add_test(
+        NAME ttest7_medium
+        COMMAND ttest7_medium /home/szarnyasg/matrices/kgs-bool.mtx
+        WORKSPACE TriangleCount
+)
+
+add_executable(ttest7_large TriangleCount/ttest7.c)
+add_test(
+        NAME ttest7_large
+        COMMAND ttest7_large /home/szarnyasg/matrices/datagen-7_5-fb-bool.mtx
+        WORKSPACE TriangleCount
+)
+
