@@ -255,7 +255,7 @@ GrB_Info LAGraph_tricount   // count # of triangles
             GxB_SelectOp_new (&s, select_index_smaller_than, GrB_UINT64, GrB_UINT64);
 
             double extracts = 0.0, selects = 0.0, multip1 = 0.0, multip2;
-            //#pragma omp parallel for schedule (dynamic) reduction (+: ntri_total)
+            #pragma omp parallel for schedule (dynamic) reduction (+: ntri_total)
             for (GrB_Index i = 0; i < n-1; i++) {
                 GrB_Vector a1, a01, tmp, ntri_iter_vec;
 

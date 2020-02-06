@@ -41,139 +41,45 @@
 
 #include "LAGraph.h"
 
-#define LAGRAPH_FREE_ALL                            \
-{                                                   \
-    GrB_free (&C) ;                                 \
-    GrB_free (&A) ;                                 \
-    GrB_free (&M) ;                                 \
-}
 
 int main (int argc, char **argv)
 {
 
-    //--------------------------------------------------------------------------
-    // initialize LAGraph and GraphBLAS
-    //--------------------------------------------------------------------------
+    int i;
+    printf("%d ...", i);
+//    long N = 5000;
+//    long i;
+//    float* v1 = malloc(N*sizeof(long));
+//    float* v2 = malloc(N*sizeof(long));
+//    float* p = malloc(N*sizeof(long));
+//
+//    for (i=0; i<N; i++) {
+//        v1[i] = 1.0f;
+//        v2[i] = 2.0f;
+//    }
+//
+//    #pragma omp target map(to: v1, v2) map(from: p)x
+//    #pragma omp parallel for
+//    for (i=0; i<N; i++) {
+//        float res = 0.0f;
+//        for (int j = 0; j < 100; j++) {
+//            res += v1[i] * v2[i] / 3.12f * v1[i] / 8.3f;
+//        }
+//        p[i] = res;
+//    }
+//
+//    float max_val;
+//    #pragma omp parallel for reduction(max:max_val)
+//    for (int idx = 0; idx < N; idx++) {
+//        max_val = max_val > p[idx] ? max_val : p[idx];
+//    }
+//
+//    free(v1);
+//    free(v2);
+//    free(p);
 
-    GrB_Info info ;
-    GrB_Matrix A = NULL, C = NULL, M = NULL ;
+//for (i=0; i<N; i++) {printf("%02f\n", p[i]);}
 
-    LAGraph_init ( ) ;
-    int nthreads_max = LAGraph_get_nthreads ( ) ;
-    if (nthreads_max == 0) nthreads_max = 1 ;
 
-    //--------------------------------------------------------------------------
-    // get the input matrix
-    //--------------------------------------------------------------------------
-
-    double tic [2] ;
-    LAGraph_tic (tic) ;
-
-    FILE *out = stdout ;
-
-    FILE *f ;
-    bool symmetric ;
-    if (argc == 1)
-    {
-        f = stdin ;
-        symmetric = false ;
-    }
-    else
-    {
-        f = fopen (argv[1], "r") ;
-        if (f == NULL)
-        {
-            printf ("unable to open file [%s]\n", argv[1]) ;
-            return (GrB_INVALID_VALUE) ;
-        }
-    }
-
-    LAGRAPH_OK (LAGraph_mmread (&C, f)) ;
-
-    GrB_Index n, ne ;
-    LAGRAPH_OK (GrB_Matrix_nrows (&n, C)) ;
-    LAGRAPH_OK (GrB_Matrix_nvals (&ne, C)) ;
-    double t_read = LAGraph_toc (tic) ;
-    fprintf (out, "\nread A time:     %14.6f sec\n", t_read) ;
-
-    LAGraph_tic (tic) ;
-
-#if 0
-    // A = spones (C), and typecast to FP64
-    LAGRAPH_OK (GrB_Matrix_new (&A, GrB_FP64, n, n)) ;
-    LAGRAPH_OK (GrB_apply (A, NULL, NULL, LAGraph_ONE_FP64, C, NULL)) ;
-    GrB_free (&C) ;
-
-    // M = diagonal mask matrix
-    LAGRAPH_OK (GrB_Matrix_new (&M, GrB_BOOL, n, n)) ;
-    for (int64_t i = 0 ; i < n ; i++)
-    {
-        // M(i,i) = true ;
-        LAGRAPH_OK (GrB_Matrix_setElement (M, (bool) true, i, i)) ;
-    }
-
-    // remove self edges (via M)
-    LAGRAPH_OK (GrB_assign (A, M, NULL, A, GrB_ALL, n, GrB_ALL, n,
-        LAGraph_desc_oocr)) ;
-    GrB_free (&M) ;
-
-    LAGRAPH_OK (GrB_Matrix_nvals (&ne, A)) ;
-
-    // double t_process = LAGraph_toc (tic) ;
-    fprintf (out, "process A time:  %14.6f sec\n", t_process) ;
-
-#else
-    A = C ;
-    C = NULL ;
-#endif
-
-    LAGRAPH_OK (GrB_Matrix_nvals (&ne, A)) ;
-    #ifdef GxB_SUITESPARSE_GRAPHBLAS
-    // GxB_fprint (A, GxB_SUMMARY, out) ;
-    #endif
-    fprintf (out, "Matrix n: %0.16g, ne: %0.16g\n", (double) n, (double) ne) ;
-    fflush (out) ;
-
-    //--------------------------------------------------------------------------
-    // compute tricount
-    //--------------------------------------------------------------------------
-
-    #define NTRIALS 1
-    int nthread_list [NTRIALS] = { 1 } ;
-
-    double t1 = -1 ;
-    int nthreads_t1 = 0 ;
-    // for (int nthreads = 1 ; nthreads <= nthreads_max ; )
-    for (int trial = 0 ; trial < NTRIALS ; trial++)
-    {
-        int nthreads = nthread_list [trial] ;
-        if (nthreads > nthreads_max) break ;
-        LAGraph_set_nthreads (nthreads) ;
-
-        uint64_t ntri;
-
-        // ignore the sanitize time;  assume the user could have provided an
-        // input graph that is already binary with no self-edges
-        double timing [2] ;
-        LAGRAPH_OK (LAGraph_tricount(&ntri, 11, A, GrB_NULL, GrB_NULL, GrB_NULL, timing)) ;
-//        LAGRAPH_OK (LAGraph_tricount(&ntri, 12, A, GrB_NULL, GrB_NULL, GrB_NULL, timing)) ;
-//        LAGRAPH_OK (LAGraph_tricount(&ntri, 14, A, GrB_NULL, GrB_NULL, GrB_NULL, timing)) ;
-        double t = timing [1] ;
-
-        fprintf (out, "Total number of triangles: %ld\n", ntri);
-        fprintf (out, "nthreads: %3d sanitize %12.2f sec, LCC time: %10.2f"
-            " sec, rate: %6.2f", nthreads, timing [0], t, 1e-6 * ne / t) ;
-        if (nthreads != nthreads_t1 && t1 > 0)
-        {
-            fprintf (out, " speedup: %6.2f vs %d thread", t1 / t, nthreads_t1);
-            if (nthreads_t1 != 1) fprintf (out, "s") ;
-        }
-        fprintf (out, "\n") ;
-        fflush (out) ;
-    }
-
-    fprintf (out, "\n") ;
-    LAGRAPH_FREE_ALL ;
-    LAGraph_finalize ( ) ;
 }
 
