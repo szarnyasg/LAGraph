@@ -34,11 +34,6 @@
 
 //------------------------------------------------------------------------------
 
-// Contributed by Tim Davis, Texas A&M University
-
-// usage:
-// mtx2bin infile.mtx outfile.grb
-
 #include "LAGraph.h"
 
 #define LAGRAPH_FREE_ALL            \
@@ -48,54 +43,22 @@
 
 int main (int argc, char **argv)
 {
-    GrB_Info info ;
-    GrB_Matrix A = NULL ;
+    GrB_Info info;
+    GrB_Matrix A = NULL;
 
-    if (argc < 3)
-    {
-        LAGRAPH_ERROR ("Usage: mxt2bin infile.mtx outfile.grb",
-            GrB_INVALID_VALUE) ;
+    LAGRAPH_OK(LAGraph_init ())
+
+    GrB_Index n = 5000000000;
+
+    LAGRAPH_OK(GrB_Matrix_new(&A, GrB_BOOL, n, n))
+
+    fprintf(stderr, "Start inserting edges\n");
+    for (GrB_Index i; i < n; i++) {
+        LAGRAPH_OK(GrB_Matrix_setElement_BOOL(A, true, i, i))
+        if (i % 100000000 == 0) {
+            fprintf(stderr, "- Edge no.%ld processed\n", i);
+        }
     }
 
-    printf ("infile:  %s\n", argv [1]) ;
-    printf ("outfile: %s\n", argv [2]) ;
-
-    LAGRAPH_OK (LAGraph_init ( )) ;
-
-    //--------------------------------------------------------------------------
-    // read matrix from input file
-    //--------------------------------------------------------------------------
-
-    double tic [2] ;
-    LAGraph_tic (tic) ;
-
-    // read in the file in Matrix Market format from the input file
-    FILE *f = fopen (argv [1], "r") ;
-    if (f == NULL)
-    {
-        printf ("Matrix file not found: [%s]\n", argv [1]) ;
-        exit (1) ;
-    }
-    LAGRAPH_OK (LAGraph_mmread(&A, f)) ;
-    fclose (f) ;
-
-    GrB_Index nvals ;
-    LAGRAPH_OK (GrB_Matrix_nvals (&nvals, A)) ;
-    LAGRAPH_OK (GxB_fprint (A, 2, stdout)) ;
-
-    double t_read = LAGraph_toc (tic) ;
-    printf ("read time: %g sec\n", t_read) ;
-
-    //--------------------------------------------------------------------------
-    // write to output file
-    //--------------------------------------------------------------------------
-
-    LAGraph_tic (tic) ;
-    LAGRAPH_OK (LAGraph_binwrite (&A, argv [2], argv [1])) ;
-
-    double t_binwrite = LAGraph_toc (tic) ;
-    printf ("binary write time: %g sec\n", t_binwrite) ;
-
-    LAGRAPH_FREE_ALL ;
-    return (GrB_SUCCESS) ;
+    return (GrB_SUCCESS);
 }
