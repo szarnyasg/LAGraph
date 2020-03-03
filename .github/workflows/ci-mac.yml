@@ -13,11 +13,11 @@ jobs:
       run: |
         git clone --depth 1 --branch v3.2.0 https://github.com/DrTimothyAldenDavis/GraphBLAS
         cd GraphBLAS
-        JOBS=$(nproc) make
+        JOBS=$(sysctl -n hw.logicalcpu) make
         sudo make install
         sudo ldconfig
         cd ..
     - name: make
-      run: JOBS=$(nproc) make
+      run: JOBS=$(sysctl -n hw.logicalcpu) make
     - name: test
-      run: cd Test && JOBS=$(nproc) make
+      run: cd Test && JOBS=$(sysctl -n hw.logicalcpu) make
