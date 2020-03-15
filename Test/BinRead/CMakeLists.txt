@@ -214,11 +214,15 @@ set (MTX2BIN_SRC
 set (BINREAD_SRC
      binread.c)
 
+
+set (BIN2UNDIR_SRC
+     bin2undir.c)
+
 add_executable ( mtx2bin ${MTX2BIN_SRC} )
 add_executable ( binread ${BINREAD_SRC} )
+add_executable ( bin2undir ${BIN2UNDIR_SRC} )
 
 # Libraries required for Demo programs
 target_link_libraries ( mtx2bin graphblas lagraph m )
 target_link_libraries ( binread graphblas lagraph m )
-
-
+target_link_libraries ( bin2undir graphblas lagraph m )
