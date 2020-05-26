@@ -7,6 +7,7 @@
     * LAGraph_BF_basic_pushpull: direction optimizing Bellman-Ford single source shortest paths
     * LAGraph_BF_full: Bellman-Ford single source shortest paths, with tree
     * LAGraph_bfs_pushpull: direction optimizing breadth-first search
+    * LAGraph_msbfs: multi-source breadth-first search
     * LAGraph_bfs_simple: conventional breadth-first search
     * LAGraph_cc_boruvka: connected components based on the Boruvka algorithm
     * LAGraph_cc_fastsv: connected components using the [FastSV algorithm](https://arxiv.org/pdf/1910.05971.pdf) (fastest in most cases)

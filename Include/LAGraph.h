@@ -1014,6 +1014,17 @@ GrB_Info LAGraph_bfs_simple     // push-only BFS
     GrB_Index s             // starting node of the BFS
 ) ;
 
+GrB_Info LAGraph_msbfs      // multi-source BFS
+(
+    GrB_Matrix *L_handle,   // L(t,i) is the BFS levels of node i in traversal t
+    GrB_Matrix A,           // input graph, treated as if boolean in semiring
+    GrB_Matrix AT,          // transpose of A (optional; push-only if NULL)
+    GrB_Index* s,           // starting nodes of the BFS
+    GrB_Index ns,           // number of starting nodes
+    int64_t max_level,      // optional limit of # levels to search
+    bool vsparse            // if true, v is expected to be very sparse
+) ;
+
 GrB_Info LAGraph_cc_lacc (
     GrB_Vector *result,     // output: array of component identifiers
     GrB_Matrix A,           // input matrix
