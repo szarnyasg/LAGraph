@@ -53,17 +53,6 @@
     GrB_free (&ref_index_vec) ;     \
 }
 
-#define ASSERT_TRUE(expr)                                   \
-{                                                           \
-    if(!(expr)) {                                           \
-        fprintf(stderr, "Test failed: %s\nFile: %s:%d\n",   \
-                #expr, __FILE__, __LINE__);                 \
-        LAGRAPH_FREE_ALL;                                   \
-        exit(EXIT_FAILURE);                                 \
-    }                                                       \
-}
-
-
 int main(void) {
 
     //--------------------------------------------------------------------------
@@ -81,69 +70,21 @@ int main(void) {
     LAGRAPH_TRY_CATCH (LAGraph_init());
 
     // prepare array of IDs
-    const GrB_Index big_id = 1ULL << 48;
-    const GrB_Index index_of_big_id = 2;
-    const GrB_Index identifiers[] = {42, 0, big_id, 1};
-    const GrB_Index nids = sizeof(identifiers) / sizeof(identifiers[0]);
+    srand(0);
+
+    const GrB_Index nids = 1 * 1000 * 1000;
+    GrB_Index* identifiers = malloc(nids * sizeof(GrB_Index));
+    for (int i = 0; i < nids; i++) {
+        identifiers[i] = rand() * UINT_MAX;
+    }
 
     // build mappings
     GrB_Index id_dimension;
+    double tic[2];
+    LAGraph_tic (tic);
     LAGRAPH_TRY_CATCH(LAGraph_dense_relabel(&Id2index, &Index2id, &id2index, identifiers, nids, &id_dimension));
-
-#ifndef NDEBUG
-    LAGRAPH_TRY_CATCH(GxB_fprint(Id2index, GxB_COMPLETE, stdout));
-    LAGRAPH_TRY_CATCH(GxB_fprint(Index2id, GxB_COMPLETE, stdout));
-    LAGRAPH_TRY_CATCH(GxB_fprint(id2index, GxB_COMPLETE, stdout));
-#endif
-
-    //--------------------------------------------------------------------------
-    // use id2index vector (original_id -> index)
-    //--------------------------------------------------------------------------
-    GrB_Index index = 0;
-    LAGr_Vector_extractElement(&index, id2index, big_id);
-    ASSERT_TRUE(index_of_big_id == index);
-
-    //--------------------------------------------------------------------------
-    // use Id2index (original_id -> index)
-    //--------------------------------------------------------------------------
-    LAGr_Vector_new(&id_vec, GrB_BOOL, id_dimension);
-    LAGr_Vector_setElement(id_vec, true, big_id);
-#ifndef NDEBUG
-    LAGRAPH_TRY_CATCH(GxB_fprint(id_vec, GxB_COMPLETE, stdout));
-#endif
-
-    LAGr_Vector_new(&index_vec, GrB_BOOL, nids);
-    LAGr_vxm(index_vec, GrB_NULL, GrB_NULL, GxB_LOR_LAND_BOOL, id_vec, Id2index, GrB_NULL);
-#ifndef NDEBUG
-    LAGRAPH_TRY_CATCH(GxB_fprint(index_vec, GxB_COMPLETE, stdout));
-#endif
-
-    // test
-    LAGr_Vector_new(&ref_index_vec, GrB_BOOL, nids);
-    LAGr_Vector_setElement(ref_index_vec, true, index_of_big_id);
-    {
-        bool isequal = false;
-        LAGRAPH_TRY_CATCH(LAGraph_Vector_isequal(&isequal, index_vec, ref_index_vec, GrB_NULL));
-        ASSERT_TRUE(isequal);
-    }
-
-    //--------------------------------------------------------------------------
-    // use Index2id (index -> original_id)
-    //--------------------------------------------------------------------------
-    LAGr_Vector_clear(id_vec);
-    LAGr_vxm(id_vec, GrB_NULL, GrB_NULL, GxB_LOR_LAND_BOOL, index_vec, Index2id, GrB_NULL);
-#ifndef NDEBUG
-    LAGRAPH_TRY_CATCH(GxB_fprint(id_vec, GxB_COMPLETE, stdout));
-#endif
-
-    // test
-    LAGr_Vector_new(&ref_id_vec, GrB_BOOL, id_dimension);
-    LAGr_Vector_setElement(ref_id_vec, true, big_id);
-    {
-        bool isequal = false;
-        LAGRAPH_TRY_CATCH(LAGraph_Vector_isequal(&isequal, id_vec, ref_id_vec, GrB_NULL));
-        ASSERT_TRUE(isequal);
-    }
+    double time = LAGraph_toc(tic);
+    printf("Dense relabel time: %.2f\n", time);
 
     LAGRAPH_FREE_ALL;
     LAGraph_finalize();

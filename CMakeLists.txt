@@ -324,3 +324,9 @@ install ( TARGETS lagraph lagraph_static
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
+#-------------------------------------------------------------------------------
+# LAGraph testing
+#-------------------------------------------------------------------------------
+
+enable_testing()
+add_subdirectory(Test)
