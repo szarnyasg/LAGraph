@@ -53,6 +53,33 @@
     GrB_free (&ref_index_vec) ;     \
 }
 
+// https://www.geeksforgeeks.org/binary-search/
+GrB_Index binarySearch(GrB_Index arr[], GrB_Index l, GrB_Index r, GrB_Index x)
+{
+    if (r >= l) {
+        GrB_Index mid = l + (r - l) / 2;
+
+        // If the element is present at the middle
+        // itself
+        if (arr[mid] == x)
+            return mid;
+
+        // If element is smaller than mid, then
+        // it can only be present in left subarray
+        if (arr[mid] > x)
+            return binarySearch(arr, l, mid - 1, x);
+
+        // Else the element can only be present
+        // in right subarray
+        return binarySearch(arr, mid + 1, r, x);
+    }
+
+    // We reach here when element is not
+    // present in array
+    return -1;
+}
+
+
 int main(void) {
 
     //--------------------------------------------------------------------------
@@ -76,13 +103,17 @@ int main(void) {
     // prepare array of IDs
     srand(0);
 
+//    const GrB_Index nnodes =  5;
+//    const GrB_Index nedges = 15;
     const GrB_Index nnodes =   2 * 1000 * 1000;
     const GrB_Index nedges = 6.5 * 1000 * 1000;
 
     GrB_Index* vertex_ids = malloc(nnodes * sizeof(GrB_Index));
     for (GrB_Index i = 0; i < nnodes; i++) {
-        vertex_ids[i] = rand() * UINT_MAX;
+        vertex_ids[i] = rand();
+//        printf("%d, ", vertex_ids[i]);
     }
+    printf("\n");
 
     GrB_Index* edge_srcs = malloc(nedges * sizeof(GrB_Index));
     GrB_Index* edge_trgs = malloc(nedges * sizeof(GrB_Index));
@@ -96,15 +127,31 @@ int main(void) {
     // build mappings
     LAGraph_tic (tic);
     LAGRAPH_TRY_CATCH(LAGraph_dense_relabel(NULL, NULL, &id2index, vertex_ids, nnodes, NULL));
+    GrB_Index *I = LAGraph_malloc(nnodes, sizeof(GrB_Index));
+    GrB_Index *X = LAGraph_malloc(nnodes, sizeof(GrB_Index));
+    GrB_Vector_extractTuples(I, X, &nnodes, id2index);
     double time1 = LAGraph_toc(tic);
     printf("Vertex relabel time: %.2f\n", time1);
 
+    /*
+    printf("I: ");
+    for (GrB_Index i = 0; i < nnodes; i++) printf("%d, ", I[i]);
+    printf("\n");
+
+    printf("X: ");
+    for (GrB_Index i = 0; i < nnodes; i++) printf("%d, ", X[i]);
+    printf("\n");
+     */
+
     LAGraph_tic (tic);
-#pragma omp parallel for num_threads(nthreads) schedule(static)
+//#pragma omp parallel for num_threads(nthreads) schedule(static)
     for (GrB_Index j = 0; j < nedges; j++) {
         GrB_Index src_index, trg_index;
-        GrB_Vector_extractElement_UINT64(&src_index, id2index, edge_srcs[j]);
-        GrB_Vector_extractElement_UINT64(&trg_index, id2index, edge_trgs[j]);
+        //GrB_Vector_extractElement_UINT64(&src_index, id2index, edge_srcs[j]);
+        //GrB_Vector_extractElement_UINT64(&trg_index, id2index, edge_trgs[j]);
+        src_index = X[binarySearch(I, 0, nnodes, edge_srcs[j])];
+        trg_index = X[binarySearch(I, 0, nnodes, edge_trgs[j])];
+//        printf("%d -> %d ==> %d -> %d\n", edge_srcs[j], edge_trgs[j], src_index, trg_index);
     }
     double time2 = LAGraph_toc(tic);
     printf("Edge relabel time: %.2f\n", time2);
