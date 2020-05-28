@@ -69,22 +69,45 @@ int main(void) {
 
     LAGRAPH_TRY_CATCH (LAGraph_init());
 
+    // TODO: set threads here
+    uint64_t nthreads = 1;
+    LAGraph_set_nthreads (nthreads) ;
+
     // prepare array of IDs
     srand(0);
 
-    const GrB_Index nids = 1 * 1000 * 1000;
-    GrB_Index* identifiers = malloc(nids * sizeof(GrB_Index));
-    for (int i = 0; i < nids; i++) {
-        identifiers[i] = rand() * UINT_MAX;
+    const GrB_Index nnodes =   2 * 1000 * 1000;
+    const GrB_Index nedges = 6.5 * 1000 * 1000;
+
+    GrB_Index* vertex_ids = malloc(nnodes * sizeof(GrB_Index));
+    for (GrB_Index i = 0; i < nnodes; i++) {
+        vertex_ids[i] = rand() * UINT_MAX;
     }
 
-    // build mappings
-    GrB_Index id_dimension;
+    GrB_Index* edge_srcs = malloc(nedges * sizeof(GrB_Index));
+    GrB_Index* edge_trgs = malloc(nedges * sizeof(GrB_Index));
+    for (GrB_Index j = 0; j < nedges; j++) {
+        edge_srcs[j] = vertex_ids[rand() % nnodes];
+        edge_trgs[j] = vertex_ids[rand() % nnodes];
+    }
+
     double tic[2];
+
+    // build mappings
     LAGraph_tic (tic);
-    LAGRAPH_TRY_CATCH(LAGraph_dense_relabel(&Id2index, &Index2id, &id2index, identifiers, nids, &id_dimension));
-    double time = LAGraph_toc(tic);
-    printf("Dense relabel time: %.2f\n", time);
+    LAGRAPH_TRY_CATCH(LAGraph_dense_relabel(NULL, NULL, &id2index, vertex_ids, nnodes, NULL));
+    double time1 = LAGraph_toc(tic);
+    printf("Vertex relabel time: %.2f\n", time1);
+
+    LAGraph_tic (tic);
+#pragma omp parallel for num_threads(nthreads) schedule(static)
+    for (GrB_Index j = 0; j < nedges; j++) {
+        GrB_Index src_index, trg_index;
+        GrB_Vector_extractElement_UINT64(&src_index, id2index, edge_srcs[j]);
+        GrB_Vector_extractElement_UINT64(&trg_index, id2index, edge_trgs[j]);
+    }
+    double time2 = LAGraph_toc(tic);
+    printf("Edge relabel time: %.2f\n", time2);
 
     LAGRAPH_FREE_ALL;
     LAGraph_finalize();
