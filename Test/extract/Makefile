@@ -18,7 +18,10 @@ JOBS ?= 1
 
 # build and run test
 default: compile
-	./build/extract_test
+	echo ======= binary search =======
+	./build/extract_test b
+	echo === Vector_extractElement ===
+	./build/extract_test e
 
 # build test
 compile:
