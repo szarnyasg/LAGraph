@@ -87,7 +87,7 @@ void print_bit_matrices(const GrB_Matrix frontier, const GrB_Matrix next, const 
         printf("%4ld:", i);
         for (GrB_Index j = 0; j < ncols; j++) {
             printf(
-              " %016lx   %016lx   %016lx   %8ld   %3ld",
+              " %016lx   %016lx   %016lx   %13ld   %3ld",
               extract(frontier, i, j), extract(next, i, j), extract(seen, i, j), extract_v(next_popcount, i), extract_v(sp, i));
         }
         printf("\n");
@@ -103,7 +103,7 @@ GrB_Info create_diagonal_bit_matrix(GrB_Matrix D) {
 
 //    I = 0, 1, ..., n
 //    J = 0, 0, ..., 0 [64], 1, 1, ..., 1 [64], ..., ceil(n/64)
-//    X = repeat {b100..., b010..., b001..., ⋯, b...001} until we have n elements
+//    X = repeat {b100..., b010..., b001..., ..., b...001} until we have n elements
     GrB_Index* I = LAGraph_malloc(n, sizeof(GrB_Index));
     GrB_Index* J = LAGraph_malloc(n, sizeof(GrB_Index));
     uint64_t*  X = LAGraph_malloc(n, sizeof(uint64_t));
@@ -147,7 +147,7 @@ int main (int argc, char **argv)
     GrB_Vector next_popcount;
     uint64_t total_next_popcount;
 
-    GrB_Vector ones, level_v, sp, compsize;
+    GrB_Vector ones, n_minus_one, level_v, sp, compsize, ccv;
 
     LAGraph_init ( ) ;
 
@@ -182,9 +182,11 @@ int main (int argc, char **argv)
 
     LAGr_Vector_new(&next_popcount, GrB_UINT64, n)
     LAGr_Vector_new(&ones, GrB_UINT64, n)
+    LAGr_Vector_new(&n_minus_one, GrB_UINT64, n)
     LAGr_Vector_new(&level_v, GrB_UINT64, n)
     LAGr_Vector_new(&sp, GrB_UINT64, n)
     LAGr_Vector_new(&compsize, GrB_UINT64, n)
+    LAGr_Vector_new(&ccv, GrB_FP64, n)
 
     // initialize frontier matrix
 //    LAGr_Matrix_setElement(frontier, 1L << 63, 0, 0)
@@ -192,8 +194,9 @@ int main (int argc, char **argv)
     // to compute closeness centrality, start off with the diagonal as a frontier
     create_diagonal_bit_matrix(frontier);
 
-    // initialize vectors with 1s
+    // initialize vectors
     GrB_assign(ones, NULL, NULL, 1, GrB_ALL, n, NULL);
+    GrB_assign(n_minus_one, NULL, NULL, n-1, GrB_ALL, n, NULL);
 
     // initialize seen matrix with all explicit zeros...
     for (GrB_Index i = 0; i < n; i++) {
@@ -242,7 +245,23 @@ int main (int argc, char **argv)
     LAGr_reduce(compsize, NULL, NULL, GxB_PLUS_UINT64_MONOID, Seen_PopCount, NULL)
     GxB_print(compsize, GxB_SHORT);
 
+    // compute the closeness centrality value:
+    //
+    //          (C(p)-1)^2
+    // CCV(p) = ----------
+    //          (n-1)*s(p)
+
+    GrB_eWiseAdd(compsize, NULL, NULL, GrB_MINUS_UINT64, compsize, ones, NULL);
+    GrB_eWiseMult(compsize, NULL, NULL, GrB_TIMES_UINT64, compsize, compsize, NULL);
+
+    GrB_eWiseMult(sp, NULL, NULL, GrB_TIMES_UINT64, n_minus_one, sp, NULL);
+    GrB_eWiseMult(ccv, NULL, NULL, GrB_DIV_FP64, compsize, sp, NULL);
+
+//    GxB_print(compsize, GxB_SHORT);
+//    GxB_print(sp, GxB_SHORT);
+
+    GxB_print(ccv, GxB_SHORT);
+
     LAGRAPH_FREE_ALL ;
     LAGraph_finalize ( ) ;
 }
-
