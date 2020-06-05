@@ -35,6 +35,7 @@ default:
 	( cd DenseRelabel          ; $(MAKE) --jobs=$(JOBS) CC=$(CC) CXX=$(CC) )
 	( cd SSSP                  ; $(MAKE) --jobs=$(JOBS) CC=$(CC) CXX=$(CC) )
 	( cd MatrixExtractKeepDimensions ; $(MAKE) --jobs=$(JOBS) CC=$(CC) CXX=$(CC) )
+	( cd MSBFS                 ; $(MAKE) --jobs=$(JOBS) CC=$(CC) CXX=$(CC) )
 
 clean: distclean
 

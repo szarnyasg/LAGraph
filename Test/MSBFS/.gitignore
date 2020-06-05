@@ -1,0 +1,7 @@
+# Ignore these files
+A.mtx
+stderr.txt
+lcc_results
+
+# Do not ignore this file
+!.gitignore
