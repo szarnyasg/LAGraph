@@ -238,7 +238,7 @@ int main (int argc, char **argv)
         // frontier = next
         LAGr_Matrix_dup(&frontier, next)
     }
-    // compsize = reduce(seen, row -> next_popcount(row))
+    // compsize = reduce(seen, row -> popcount(row))
     GrB_Matrix_apply(Seen_PopCount, NULL, NULL, op_popcount, seen, NULL);
     LAGr_reduce(compsize, NULL, NULL, GxB_PLUS_UINT64_MONOID, Seen_PopCount, NULL)
 
@@ -248,7 +248,9 @@ int main (int argc, char **argv)
     // CCV(p) = ----------
     //          (n-1)*s(p)
 
+    // C(p)-1
     GrB_eWiseAdd(compsize, NULL, NULL, GrB_MINUS_UINT64, compsize, ones, NULL);
+    // (C(p)-1)^2
     GrB_eWiseMult(compsize, NULL, NULL, GrB_TIMES_UINT64, compsize, compsize, NULL);
 
     GrB_eWiseMult(sp, NULL, NULL, GrB_TIMES_UINT64, n_minus_one, sp, NULL);
