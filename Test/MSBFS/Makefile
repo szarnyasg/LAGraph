@@ -19,6 +19,7 @@ JOBS ?= 1
 # build and run test
 default: compile
 	./build/msbfstest
+	./build/bidirbfstest
 
 # build test
 compile:
