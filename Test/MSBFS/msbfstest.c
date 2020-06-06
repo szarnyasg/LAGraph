@@ -141,7 +141,7 @@ int main (int argc, char **argv)
     //--------------------------------------------------------------------------
 
     GrB_Info info ;
-    GrB_Matrix A = NULL, frontier = NULL, next = NULL, seen = NULL, not_seen = NULL, Seen_PopCount = NULL ;
+    GrB_Matrix A = NULL, frontier = NULL, next = NULL, seen = NULL, Seen_PopCount = NULL ;
 
     GrB_Matrix Next_PopCount;
     GrB_Vector next_popcount;
@@ -178,7 +178,6 @@ int main (int argc, char **argv)
     LAGr_Matrix_new(&frontier, GrB_UINT64, n, bit_matrix_ncols)
     LAGr_Matrix_new(&next, GrB_UINT64, n, bit_matrix_ncols)
     LAGr_Matrix_new(&seen, GrB_UINT64, n, bit_matrix_ncols)
-    LAGr_Matrix_new(&not_seen, GrB_UINT64, n, bit_matrix_ncols)
     LAGr_Matrix_new(&Next_PopCount, GrB_UINT64, n, bit_matrix_ncols)
     LAGr_Matrix_new(&Seen_PopCount, GrB_UINT64, n, bit_matrix_ncols)
 
