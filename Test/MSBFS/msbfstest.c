@@ -211,10 +211,12 @@ int main (int argc, char **argv)
 
         LAGr_apply(not_seen, NULL, NULL, GrB_BNOT_UINT64, seen, NULL)
         // next = next & ~seen
-        // n.b. masking is not applicable here
-        LAGr_eWiseMult(next, NULL, NULL, GrB_BAND_UINT64, next, not_seen, NULL)
-        // drop explicit zero elements
-        LAGr_select(next, NULL, NULL, GxB_NONZERO, next, NULL, NULL)
+        // we need to use eWiseAdd to see the union of value
+        // the code previously dropped zero elements
+        // DO NOT do that as it will render seen[i] = 0000 (implicit value)
+        // and seen[j] = 1111 equivalent in not_seen
+        LAGr_eWiseAdd(next, NULL, NULL, GrB_BAND_UINT64, next, not_seen, NULL)
+
 
         LAGr_apply(Next_PopCount, NULL, NULL, op_popcount, next, NULL);
         LAGr_reduce(next_popcount, NULL, NULL, GxB_PLUS_UINT64_MONOID, Next_PopCount, NULL)
