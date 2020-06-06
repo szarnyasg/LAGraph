@@ -154,9 +154,9 @@ int main (int argc, char **argv)
     // initializing unary operator for next_popcount
     GrB_UnaryOp op_popcount = NULL ;
     LAGRAPH_OK (GrB_UnaryOp_new(&op_popcount, fun_sum_popcount, GrB_UINT64, GrB_UINT64))
-    GrB_Semiring semiring_bor_second = NULL ;
+    GrB_Semiring semiring_bor_first = NULL, semiring_bor_second = NULL ;
+    LAGRAPH_OK (GrB_Semiring_new(&semiring_bor_first, GxB_BOR_UINT64_MONOID, GrB_FIRST_UINT64))
     LAGRAPH_OK (GrB_Semiring_new(&semiring_bor_second, GxB_BOR_UINT64_MONOID, GrB_SECOND_UINT64))
-
 
     // create the input matrix
     const GrB_Index n = 8;
