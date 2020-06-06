@@ -209,7 +209,6 @@ int main (int argc, char **argv)
     }
     // ...except where the traversal starts
     LAGr_eWiseAdd(seen, NULL, NULL, GrB_BOR_UINT64, seen, frontier, NULL)
-    LAGr_apply(not_seen, NULL, NULL, GrB_BNOT_UINT64, seen, NULL)
 
     // traversal
     for (GrB_Index level = 1; level < n; level++) {
@@ -220,10 +219,11 @@ int main (int argc, char **argv)
         // next = A^T * frontier = A * frontier
         LAGr_mxm(next, NULL, NULL, semiring_bor_second, A, frontier, NULL)
 
+        LAGr_apply(not_seen, NULL, NULL, GrB_BNOT_UINT64, seen, NULL)
         // next = next & ~seen // n.b. masking is not applicable
         LAGr_eWiseMult(next, NULL, NULL, GrB_BAND_UINT64, next, not_seen, NULL)
 
-        GrB_Matrix_apply(Next_PopCount, NULL, NULL, op_popcount, next, NULL);
+        LAGr_apply(Next_PopCount, NULL, NULL, op_popcount, next, NULL);
         LAGr_reduce(next_popcount, NULL, NULL, GxB_PLUS_UINT64_MONOID, Next_PopCount, NULL)
         LAGr_reduce(&total_next_popcount, NULL, GxB_PLUS_UINT64_MONOID, next_popcount, NULL)
         if (total_next_popcount == 0) {
@@ -232,7 +232,6 @@ int main (int argc, char **argv)
         }
         // seen = seen | next
         LAGr_eWiseAdd(seen, NULL, NULL, GrB_BOR_UINT64, seen, next, NULL)
-        LAGr_apply(not_seen, NULL, NULL, GrB_BNOT_UINT64, seen, NULL)
 
         // next_popcount *= level expressed as next_popcount *= level_v
         LAGr_eWiseMult(next_popcount, NULL, NULL, GrB_TIMES_UINT64, next_popcount, level_v, NULL)
