@@ -215,6 +215,27 @@ int main (int argc, char **argv)
         // zero elements do not get the value from ~seen.
         // The code previously dropped zero elements. DO NOT do that as it will render
         // seen[i] = 0000 (implicit value) and seen[j] = 1111 equivalent in not_seen
+        /*
+             (Next)&& ! Seen  =  Next
+              1100      1010     0100
+                 -      0001        -
+              1111         -     1111
+            ----------------------------
+             (Next)&&(neg(Seen)) = Next
+              1100      0101       0100
+                 -      1110          -
+              1111         -       1111
+            ----------------------------
+            neg: apply f(a)=~a on explicit values
+            GrB_apply: C<Mask> = accum (C, op(A))
+            mask: Next
+            desc: default (do not replace) to keep values which don't have corresponding seen values
+            accum: &
+            op: ~
+            Next<Next> = Next & ~Seen
+            (Seen = Next)
+         */
+
         LAGr_eWiseAdd(next, next, NULL, GrB_BAND_UINT64, next, not_seen, NULL)
 
 
