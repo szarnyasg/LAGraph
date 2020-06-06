@@ -154,13 +154,16 @@ int main (int argc, char **argv)
     // initializing unary operator for next_popcount
     GrB_UnaryOp op_popcount = NULL ;
     LAGRAPH_OK (GrB_UnaryOp_new(&op_popcount, fun_sum_popcount, GrB_UINT64, GrB_UINT64))
+    GrB_Semiring semiring_bor_second = NULL ;
+    LAGRAPH_OK (GrB_Semiring_new(&semiring_bor_second, GxB_BOR_UINT64_MONOID, GrB_SECOND_UINT64))
+
 
     // create the input matrix
     const GrB_Index n = 8;
     const GrB_Index bit_matrix_ncols = (n+63)/64;
 
-    LAGr_Matrix_new(&A, GrB_UINT64, n, n)
-    const uint64_t val = (uint64_t) -1; // 0xffff ffff ffff ffff
+    LAGr_Matrix_new(&A, GrB_BOOL, n, n)
+    const bool val = true;
 
     // upper triangle
     LAGr_Matrix_setElement(A, val, 0, 2)
@@ -215,7 +218,7 @@ int main (int argc, char **argv)
         LAGr_eWiseAdd(level_v, NULL, NULL, GrB_PLUS_UINT64, level_v, ones, NULL)
 
         // next = A^T * frontier = A * frontier
-        LAGr_mxm(next, NULL, NULL, GxB_BOR_BAND_UINT64, A, frontier, NULL)
+        LAGr_mxm(next, NULL, NULL, semiring_bor_second, A, frontier, NULL)
 
         // next = next & ~seen // n.b. masking is not applicable
         LAGr_eWiseMult(next, NULL, NULL, GrB_BAND_UINT64, next, not_seen, NULL)
