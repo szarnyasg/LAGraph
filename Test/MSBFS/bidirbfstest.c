@@ -133,8 +133,13 @@ int main (int argc, char **argv)
     for (GrB_Index level = 1; level < n; level++) {
         printf("========================= Level %2ld =========================\n\n", level);
 
-        // next = A^T * frontier = A * frontier
-        LAGr_mxv(next, NULL, NULL, LAGr_BOR_SECOND, A, frontier, NULL)
+        // next = frontier * A
+        bool push = true; // TODO: add heuristic
+        if (push) {
+            LAGr_vxm(next, NULL, NULL, LAGr_BOR_FIRST, frontier, A, NULL)
+        } else {
+            LAGr_mxv(next, NULL, NULL, LAGr_BOR_SECOND, A, frontier, NULL)
+        }
 
         LAGr_apply(not_seen, NULL, NULL, GrB_BNOT_UINT64, seen, NULL)
 //        print_bit_matrices(frontier, next, not_seen);

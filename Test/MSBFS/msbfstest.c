@@ -205,8 +205,13 @@ int main (int argc, char **argv)
         // level_v += 1
         LAGr_eWiseAdd(level_v, NULL, NULL, GrB_PLUS_UINT64, level_v, ones, NULL)
 
-        // next = A^T * frontier = A * frontier
-        LAGr_mxm(next, NULL, NULL, LAGr_BOR_SECOND, A, frontier, NULL)
+        // next = frontier * A
+        bool push = true; // TODO: add heuristic
+        if (push) {
+            LAGr_vxm(next, NULL, NULL, LAGr_BOR_FIRST, frontier, A, NULL)
+        } else {
+            LAGr_mxv(next, NULL, NULL, LAGr_BOR_SECOND, A, frontier, NULL)
+        }
 
         // next = next & ~seen
         // We need to use eWiseAdd to see the union of value but mask with next so that
