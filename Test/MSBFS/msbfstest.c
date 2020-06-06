@@ -230,7 +230,7 @@ int main (int argc, char **argv)
             desc: default (do not replace) to keep values which don't have corresponding seen values
             accum: &
             op: ~
-            Next<Next> = Next & ~Seen
+            Next<Next> &= ~Seen
             (Seen = Next)
          */
 
