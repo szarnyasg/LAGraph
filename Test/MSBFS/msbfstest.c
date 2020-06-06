@@ -228,7 +228,8 @@ int main (int argc, char **argv)
         // seen = seen | next
         LAGr_eWiseAdd(seen, NULL, NULL, GrB_BOR_UINT64, seen, next, NULL)
 
-        // next_popcount *= level expressed as next_popcount *= level_v
+        // sp += (next_popcount * level)
+        //   next_popcount * level is expressed as next_popcount *= level_v
         LAGr_eWiseMult(next_popcount, NULL, NULL, GrB_TIMES_UINT64, next_popcount, level_v, NULL)
         LAGr_eWiseAdd(sp, NULL, NULL, GrB_PLUS_UINT64, sp, next_popcount, NULL)
 
