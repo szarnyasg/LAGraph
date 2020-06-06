@@ -50,7 +50,7 @@ uint64_t extract(const GrB_Matrix A, const GrB_Index i, const GrB_Index j) {
     uint64_t x;
     GrB_Info info = GrB_Matrix_extractElement(&x, A, i, j);
     if (info == GrB_NO_VALUE) {
-        return 0;
+        return 0xcccccccccccccccc;
     }
     return x;
 }
@@ -59,7 +59,7 @@ uint64_t extract_v(const GrB_Vector v, const GrB_Index i) {
     uint64_t x;
     GrB_Info info = GrB_Vector_extractElement(&x, v, i);
     if (info == GrB_NO_VALUE) {
-        return 0;
+        return 9999999;
     }
     return x;
 }
@@ -145,7 +145,6 @@ int main (int argc, char **argv)
 
     GrB_Matrix Next_PopCount;
     GrB_Vector next_popcount;
-    uint64_t total_next_popcount;
 
     GrB_Vector ones, n_minus_one, level_v, sp, compsize, ccv;
 
@@ -191,24 +190,15 @@ int main (int argc, char **argv)
     LAGr_Vector_new(&compsize, GrB_UINT64, n)
     LAGr_Vector_new(&ccv, GrB_FP64, n)
 
-    // initialize frontier matrix
-//    LAGr_Matrix_setElement(frontier, 1L << 63, 0, 0)
-//    LAGr_Matrix_setElement(frontier, 1L << 62, 1, 0)
-    // to compute closeness centrality, start off with the diagonal as a frontier
+    // initialize frontier and seen matrices: to compute closeness centrality, start off with a diagonal
     create_diagonal_bit_matrix(frontier);
+    LAGr_Matrix_dup(&seen, frontier)
 
     // initialize vectors
     GrB_assign(ones, NULL, NULL, 1, GrB_ALL, n, NULL);
     GrB_assign(n_minus_one, NULL, NULL, n-1, GrB_ALL, n, NULL);
 
-    // initialize seen matrix with all explicit zeros...
-    for (GrB_Index i = 0; i < n; i++) {
-        for (GrB_Index j = 0; j < bit_matrix_ncols; j++) {
-            LAGr_Matrix_setElement(seen, 0, i, j)
-        }
-    }
-    // ...except where the traversal starts
-    LAGr_eWiseAdd(seen, NULL, NULL, GrB_BOR_UINT64, seen, frontier, NULL)
+    // initialize
 
     // traversal
     for (GrB_Index level = 1; level < n; level++) {
@@ -220,13 +210,18 @@ int main (int argc, char **argv)
         LAGr_mxm(next, NULL, NULL, semiring_bor_second, A, frontier, NULL)
 
         LAGr_apply(not_seen, NULL, NULL, GrB_BNOT_UINT64, seen, NULL)
-        // next = next & ~seen // n.b. masking is not applicable
+        // next = next & ~seen
+        // n.b. masking is not applicable here
         LAGr_eWiseMult(next, NULL, NULL, GrB_BAND_UINT64, next, not_seen, NULL)
+        // drop explicit zero elements
+        LAGr_select(next, NULL, NULL, GxB_NONZERO, next, NULL, NULL)
 
         LAGr_apply(Next_PopCount, NULL, NULL, op_popcount, next, NULL);
         LAGr_reduce(next_popcount, NULL, NULL, GxB_PLUS_UINT64_MONOID, Next_PopCount, NULL)
-        LAGr_reduce(&total_next_popcount, NULL, GxB_PLUS_UINT64_MONOID, next_popcount, NULL)
-        if (total_next_popcount == 0) {
+
+        GrB_Index next_nvals;
+        LAGr_Vector_nvals(&next_nvals, next_popcount)
+        if (next_nvals == 0) {
             printf("no new vertices found\n");
             break;
         }
@@ -245,7 +240,6 @@ int main (int argc, char **argv)
     // compsize = reduce(seen, row -> next_popcount(row))
     GrB_Matrix_apply(Seen_PopCount, NULL, NULL, op_popcount, seen, NULL);
     LAGr_reduce(compsize, NULL, NULL, GxB_PLUS_UINT64_MONOID, Seen_PopCount, NULL)
-    GxB_print(compsize, GxB_SHORT);
 
     // compute the closeness centrality value:
     //
@@ -261,7 +255,6 @@ int main (int argc, char **argv)
 
 //    GxB_print(compsize, GxB_SHORT);
 //    GxB_print(sp, GxB_SHORT);
-
     GxB_print(ccv, GxB_SHORT);
 
     LAGRAPH_FREE_ALL ;
