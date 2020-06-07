@@ -40,10 +40,10 @@
 //
 
 #include "LAGraph.h"
+#include "assert.h"
 
 #define LAGRAPH_FREE_ALL                            \
 {                                                   \
-    GrB_free (&A) ;                                 \
 }
 
 uint64_t extract(const GrB_Matrix A, const GrB_Index i, const GrB_Index j) {
@@ -133,47 +133,30 @@ void fun_sum_popcount (void *z, const void *x)
     (*((uint64_t *) z))  = next_popcount(* ((uint64_t *) x));
 }
 
-
-int main (int argc, char **argv)
-{
-    //--------------------------------------------------------------------------
-    // initialize LAGraph and GraphBLAS
-    //--------------------------------------------------------------------------
-
-    GrB_Info info ;
-    GrB_Matrix A = NULL, frontier = NULL, next = NULL, seen = NULL, Seen_PopCount = NULL ;
+GrB_Info compute_ccv(GrB_Vector *ccv_handle, GrB_Matrix A) {
+    GrB_Matrix frontier = NULL, next = NULL, seen = NULL, Seen_PopCount = NULL ;
 
     GrB_Matrix Next_PopCount;
     GrB_Vector next_popcount;
 
-    GrB_Vector ones, n_minus_one, level_v, sp, compsize, ccv;
-
-    LAGraph_init ( ) ;
+    GrB_Vector ones, n_minus_one, level_v, sp, compsize;
 
     // initializing unary operator for next_popcount
     GrB_UnaryOp op_popcount = NULL ;
-    LAGRAPH_OK (GrB_UnaryOp_new(&op_popcount, fun_sum_popcount, GrB_UINT64, GrB_UINT64))
+    LAGRAPH_TRY_CATCH (GrB_UnaryOp_new(&op_popcount, fun_sum_popcount, GrB_UINT64, GrB_UINT64))
     GrB_Semiring LAGr_BOR_FIRST = NULL, LAGr_BOR_SECOND = NULL ;
-    LAGRAPH_OK (GrB_Semiring_new(&LAGr_BOR_FIRST, GxB_BOR_UINT64_MONOID, GrB_FIRST_UINT64))
-    LAGRAPH_OK (GrB_Semiring_new(&LAGr_BOR_SECOND, GxB_BOR_UINT64_MONOID, GrB_SECOND_UINT64))
+    LAGRAPH_TRY_CATCH (GrB_Semiring_new(&LAGr_BOR_FIRST, GxB_BOR_UINT64_MONOID, GrB_FIRST_UINT64))
+    LAGRAPH_TRY_CATCH (GrB_Semiring_new(&LAGr_BOR_SECOND, GxB_BOR_UINT64_MONOID, GrB_SECOND_UINT64))
 
-    // create the input matrix
-    const GrB_Index n = 8;
+    GrB_Index n;
+    LAGr_Matrix_nrows(&n, A);
+    {
+        GrB_Index ncols;
+        LAGr_Matrix_ncols(&ncols, A);
+        assert(n == ncols); // TODO replace with proper input check
+    }
+
     const GrB_Index bit_matrix_ncols = (n+63)/64;
-
-    LAGr_Matrix_new(&A, GrB_BOOL, n, n)
-    const bool val = true;
-
-    // upper triangle
-    LAGr_Matrix_setElement(A, val, 0, 2)
-    LAGr_Matrix_setElement(A, val, 0, 3)
-    LAGr_Matrix_setElement(A, val, 1, 2)
-    LAGr_Matrix_setElement(A, val, 1, 3)
-    LAGr_Matrix_setElement(A, val, 2, 4)
-    LAGr_Matrix_setElement(A, val, 3, 5)
-    LAGr_Matrix_setElement(A, val, 6, 7)
-    // lower triangle
-    GrB_eWiseAdd(A, NULL, NULL, GrB_PLUS_UINT64, A, A, LAGraph_desc_otoo);
 
     LAGr_Matrix_new(&frontier, GrB_UINT64, n, bit_matrix_ncols)
     LAGr_Matrix_new(&next, GrB_UINT64, n, bit_matrix_ncols)
@@ -187,7 +170,7 @@ int main (int argc, char **argv)
     LAGr_Vector_new(&level_v, GrB_UINT64, n)
     LAGr_Vector_new(&sp, GrB_UINT64, n)
     LAGr_Vector_new(&compsize, GrB_UINT64, n)
-    LAGr_Vector_new(&ccv, GrB_FP64, n)
+    LAGr_Vector_new(ccv_handle, GrB_FP64, n)
 
     // initialize frontier and seen matrices: to compute closeness centrality, start off with a diagonal
     create_diagonal_bit_matrix(frontier);
@@ -280,10 +263,48 @@ int main (int argc, char **argv)
     GrB_eWiseMult(compsize, NULL, NULL, GrB_TIMES_UINT64, compsize, compsize, NULL);
 
     GrB_eWiseMult(sp, NULL, NULL, GrB_TIMES_UINT64, n_minus_one, sp, NULL);
-    GrB_eWiseMult(ccv, NULL, NULL, GrB_DIV_FP64, compsize, sp, NULL);
+    GrB_eWiseMult(*ccv_handle, NULL, NULL, GrB_DIV_FP64, compsize, sp, NULL);
 
 //    GxB_print(compsize, GxB_SHORT);
 //    GxB_print(sp, GxB_SHORT);
+
+    return GrB_SUCCESS;
+}
+
+#define LAGRAPH_FREE_ALL                            \
+{                                                   \
+    GrB_free (&A) ;                                 \
+    GrB_free (&ccv) ;                               \
+}
+
+int main (int argc, char **argv)
+{
+    //--------------------------------------------------------------------------
+    // initialize LAGraph and GraphBLAS
+    //--------------------------------------------------------------------------
+    GrB_Matrix A = NULL;
+    GrB_Vector ccv = NULL;
+
+    LAGRAPH_TRY_CATCH (LAGraph_init());
+
+    // create the input matrix
+    const GrB_Index n = 8;
+    LAGr_Matrix_new(&A, GrB_BOOL, n, n)
+    const bool val = true;
+
+    // upper triangle
+    LAGr_Matrix_setElement(A, val, 0, 2)
+    LAGr_Matrix_setElement(A, val, 0, 3)
+    LAGr_Matrix_setElement(A, val, 1, 2)
+    LAGr_Matrix_setElement(A, val, 1, 3)
+    LAGr_Matrix_setElement(A, val, 2, 4)
+    LAGr_Matrix_setElement(A, val, 3, 5)
+    LAGr_Matrix_setElement(A, val, 6, 7)
+    // lower triangle
+    GrB_eWiseAdd(A, NULL, NULL, GrB_PLUS_UINT64, A, A, LAGraph_desc_otoo);
+
+    LAGRAPH_TRY_CATCH(compute_ccv(&ccv, A));
+
     GxB_print(ccv, GxB_SHORT);
 
     LAGRAPH_FREE_ALL ;
