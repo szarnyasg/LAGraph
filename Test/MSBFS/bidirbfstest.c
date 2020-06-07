@@ -103,17 +103,17 @@ int main (int argc, char **argv)
     // lower triangle
     GrB_eWiseAdd(A, NULL, NULL, GrB_PLUS_UINT64, A, A, LAGraph_desc_otoo);
 
-    LAGr_Vector_new(&frontier, GrB_UINT64, n)
-    LAGr_Vector_new(&next, GrB_UINT64, n)
-    LAGr_Vector_new(&seen, GrB_UINT64, n)
-    LAGr_Vector_new(&not_seen, GrB_UINT64, n)
-    LAGr_Vector_new(&filtered, GrB_UINT64, n)
+    LAGr_Vector_new(&frontier, GrB_UINT8, n)
+    LAGr_Vector_new(&next, GrB_UINT8, n)
+    LAGr_Vector_new(&seen, GrB_UINT8, n)
+    LAGr_Vector_new(&not_seen, GrB_UINT8, n)
+    LAGr_Vector_new(&filtered, GrB_UINT8, n)
 
     // wavefronts meeting
     GxB_Scalar meeting = NULL ;
     // Support scalar for GxB_select
-    LAGRAPH_OK (GxB_Scalar_new (&meeting, GrB_UINT64))
-    LAGRAPH_OK (GxB_Scalar_setElement (meeting, 0xC000000000000000L))
+    LAGRAPH_OK (GxB_Scalar_new (&meeting, GrB_UINT8))
+    LAGRAPH_OK (GxB_Scalar_setElement (meeting, 0x03L))
 
 
     // initialize frontier and seen matrices: to compute bidirectional search, start off with two searches
@@ -121,8 +121,8 @@ int main (int argc, char **argv)
     uint64_t*  X = LAGraph_malloc(n, sizeof(uint64_t));
     I[0] = 4; I[1] = 5; // even length path
 //    I[0] = 4; I[1] = 3; // odd length path
-    X[0] = 0x8000000000000000L;
-    X[1] = 0x4000000000000000L;
+    X[0] = 0x01L;
+    X[1] = 0x02L;
     GrB_Vector_build(frontier, I, X, 2, GrB_BOR_UINT64);
 
     LAGr_Vector_dup(&seen, frontier)
@@ -142,7 +142,7 @@ int main (int argc, char **argv)
         }
 
         LAGr_apply(not_seen, NULL, NULL, GrB_BNOT_UINT64, seen, NULL)
-//        print_bit_matrices(frontier, next, not_seen);
+
         // next = next & ~seen
         LAGr_eWiseAdd(next, next, NULL, GrB_BAND_UINT64, next, not_seen, NULL)
 
