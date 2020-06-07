@@ -146,22 +146,28 @@ int main (int argc, char **argv)
         // next = next & ~seen
         LAGr_eWiseAdd(next, next, NULL, GrB_BAND_UINT64, next, not_seen, NULL)
 
-        GrB_Index nvals;
+        GrB_Index next_nvals;
+        LAGr_Vector_nvals(&next_nvals, next)
+        if (next == 0) {
+            printf("no new vertices found\n");
+            break;
+        }
 
         print_bit_matrices(frontier, next, seen);
 
         // even length path
+        GrB_Index filtered_nvals;
         LAGr_select(filtered, NULL, NULL, GxB_EQ_THUNK, next, meeting, NULL)
-        LAGr_Vector_nvals(&nvals, filtered)
-        if (nvals > 0) { printf("found even length path: %ld\n", 2*level); break; }
+        LAGr_Vector_nvals(&filtered_nvals, filtered)
+        if (filtered_nvals > 0) { printf("found even length path: %ld\n", 2*level); break; }
 
         // seen = seen | next
         LAGr_eWiseAdd(seen, NULL, NULL, GrB_BOR_UINT64, seen, next, NULL)
 
         // odd length path
         LAGr_select(filtered, NULL, NULL, GxB_EQ_THUNK, seen, meeting, NULL)
-        LAGr_Vector_nvals(&nvals, filtered)
-        if (nvals > 0) { printf("found odd length path: %ld\n", 2*level-1); break; }
+        LAGr_Vector_nvals(&filtered_nvals, filtered)
+        if (filtered_nvals > 0) { printf("found odd length path: %ld\n", 2*level-1); break; }
 
         // frontier = next
         LAGr_Vector_dup(&frontier, next)

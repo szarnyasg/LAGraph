@@ -241,16 +241,16 @@ int main (int argc, char **argv)
 
         LAGr_apply(next, next, GrB_BAND_UINT64, GrB_BNOT_UINT64, seen, NULL)
 
-
-        LAGr_apply(Next_PopCount, NULL, NULL, op_popcount, next, NULL);
-        LAGr_reduce(next_popcount, NULL, NULL, GxB_PLUS_UINT64_MONOID, Next_PopCount, NULL)
-
         GrB_Index next_nvals;
-        LAGr_Vector_nvals(&next_nvals, next_popcount)
-        if (next_nvals == 0) {
+        LAGr_Vector_nvals(&next_nvals, next)
+        if (next == 0) {
             printf("no new vertices found\n");
             break;
         }
+        // next_popCount = reduce(apply(popcount, next))
+        LAGr_apply(Next_PopCount, NULL, NULL, op_popcount, next, NULL);
+        LAGr_reduce(next_popcount, NULL, NULL, GxB_PLUS_UINT64_MONOID, Next_PopCount, NULL)
+
         // seen = seen | next
         LAGr_eWiseAdd(seen, NULL, NULL, GrB_BOR_UINT64, seen, next, NULL)
 
