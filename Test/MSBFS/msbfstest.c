@@ -239,7 +239,8 @@ GrB_Info compute_ccv(GrB_Vector *ccv_handle, GrB_Matrix A) {
 
         // sp += (next_popcount * level)
         //   next_popcount * level is expressed as next_popcount *= level_v
-        LAGr_eWiseMult(next_popcount, NULL, NULL, GrB_TIMES_UINT64, next_popcount, level_v, NULL)
+        LAGRAPH_OK(GxB_Vector_subassign_UINT64(level_v, next_popcount, NULL, level, GrB_ALL, n, GrB_DESC_S))
+        LAGRAPH_OK(GrB_eWiseMult(next_popcount, NULL, NULL, GrB_TIMES_UINT64, next_popcount, level_v, NULL))
         LAGr_eWiseAdd(sp, NULL, NULL, GrB_PLUS_UINT64, sp, next_popcount, NULL)
 
         print_bit_matrices(frontier, next, seen, next_popcount, sp);
