@@ -119,18 +119,9 @@ GrB_Info create_diagonal_bit_matrix(GrB_Matrix D) {
     return info;
 }
 
-uint64_t next_popcount(uint64_t x)
-{
-    int c = 0;
-    for (; x != 0; x >>= 1)
-        if (x & 1)
-            c++;
-    return c;
-}
-
 void fun_sum_popcount (void *z, const void *x)
 {
-    (*((uint64_t *) z))  = next_popcount(* ((uint64_t *) x));
+    (*((uint64_t *) z)) = __builtin_popcountll(* ((uint64_t *) x));
 }
 
 GrB_Info compute_ccv(GrB_Vector *ccv_handle, GrB_Matrix A) {
@@ -188,13 +179,8 @@ GrB_Info compute_ccv(GrB_Vector *ccv_handle, GrB_Matrix A) {
         // level_v += 1
         LAGr_eWiseAdd(level_v, NULL, NULL, GrB_PLUS_UINT64, level_v, ones, NULL)
 
-        // next = frontier * A
-        bool push = true; // TODO: add heuristic
-        if (push) {
-            LAGr_vxm(next, NULL, NULL, LAGr_BOR_FIRST, frontier, A, NULL)
-        } else {
-            LAGr_mxv(next, NULL, NULL, LAGr_BOR_SECOND, A, frontier, NULL)
-        }
+        // next = A*frontier
+        LAGr_mxm(next, NULL, NULL, LAGr_BOR_SECOND, A, frontier, NULL)
 
         // next = next & ~seen
         // We need to use eWiseAdd to see the union of value but mask with next so that
@@ -239,8 +225,8 @@ GrB_Info compute_ccv(GrB_Vector *ccv_handle, GrB_Matrix A) {
 
         // sp += (next_popcount * level)
         //   next_popcount * level is expressed as next_popcount *= level_v
-        LAGRAPH_OK(GxB_Vector_subassign_UINT64(level_v, next_popcount, NULL, level, GrB_ALL, n, GrB_DESC_S))
-        LAGRAPH_OK(GrB_eWiseMult(next_popcount, NULL, NULL, GrB_TIMES_UINT64, next_popcount, level_v, NULL))
+        GxB_Vector_subassign_UINT64(level_v, next_popcount, NULL, level, GrB_ALL, n, GrB_DESC_S);
+        GrB_eWiseMult(next_popcount, NULL, NULL, GrB_TIMES_UINT64, next_popcount, level_v, NULL);
         LAGr_eWiseAdd(sp, NULL, NULL, GrB_PLUS_UINT64, sp, next_popcount, NULL)
 
         print_bit_matrices(frontier, next, seen, next_popcount, sp);
