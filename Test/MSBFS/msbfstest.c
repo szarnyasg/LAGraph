@@ -209,6 +209,7 @@ GrB_Info compute_ccv(GrB_Vector *ccv_handle, GrB_Matrix A) {
          */
 
         LAGr_apply(next, next, GrB_BAND_UINT64, GrB_BNOT_UINT64, seen, NULL)
+        LAGr_select(next, GrB_NULL, GrB_NULL, GxB_NONZERO, next, GrB_NULL, GrB_NULL)
 
         GrB_Index next_nvals;
         LAGr_Vector_nvals(&next_nvals, next)
