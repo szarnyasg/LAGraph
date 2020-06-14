@@ -212,7 +212,7 @@ GrB_Info compute_ccv(GrB_Vector *ccv_handle, GrB_Matrix A) {
 
         GrB_Index next_nvals;
         LAGr_Vector_nvals(&next_nvals, next)
-        if (next == 0) {
+        if (next_nvals == 0) {
             printf("no new vertices found\n");
             break;
         }
