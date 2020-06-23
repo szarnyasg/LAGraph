@@ -61,9 +61,9 @@ void print_matrix(const GrB_Matrix A) {
         for (GrB_Index j = 0; j < ncols; j++) {
             uint64_t val = extract(A, i, j);
             if (val == -1) {
-                printf("     ");
+                printf("   ");
             } else {
-                printf(" %4ld", val);
+                printf(" %2ld", val);
             }
         }
         printf("\n");
@@ -75,6 +75,7 @@ void print_matrix(const GrB_Matrix A) {
 #define LAGRAPH_FREE_ALL                            \
 {                                                   \
     GrB_free (&A) ;                                 \
+    GrB_free (&S) ;                                 \
     GrB_free (&C) ;                                 \
 }
 
@@ -86,7 +87,7 @@ int main (int argc, char **argv)
     //--------------------------------------------------------------------------
 
     GrB_Info info ;
-    GrB_Matrix A = NULL, C = NULL ;
+    GrB_Matrix A = NULL, C = NULL, S = NULL ;
 
     LAGraph_init ( ) ;
     int nthreads_max = LAGraph_get_nthreads ( ) ;
@@ -118,15 +119,22 @@ int main (int argc, char **argv)
     GrB_Index n;
     GrB_Matrix_nrows(&n, A);
 
-    GrB_Matrix S = NULL;
     LAGraph_pattern(&S, A, GrB_NULL);
 
 //    GxB_print(S, GxB_COMPLETE);
     print_matrix(S);
-    LAGraph_reorder_vertices(&C, NULL, S, false);
+    GrB_Index* mapping;
+    LAGraph_reorder_vertices(&C, &mapping, S, false);
     print_matrix(C);
+    for (GrB_Index i = 0; i < n; i++) {
+        printf("%ld -> %ld\n", i, mapping[i]);
+    }
 //    GxB_print(C, GxB_COMPLETE);
+    LAGRAPH_FREE(mapping);
 
+    GrB_free (&A) ;
+    GrB_free (&S) ;
+    GrB_free (&C) ;
     LAGRAPH_FREE_ALL ;
     LAGraph_finalize ( ) ;
 }

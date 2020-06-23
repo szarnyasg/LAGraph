@@ -45,14 +45,17 @@
 #include "GB_msort_2.h"
 
 #define LAGRAPH_FREE_ALL        \
-    GrB_free (&C) ;             \
+{                               \
+    GrB_free (&S) ;             \
     GrB_free (&L) ;             \
     GrB_free (&T) ;             \
     GrB_free (&U) ;             \
     LAGRAPH_FREE (W0) ;         \
     LAGRAPH_FREE (W1) ;         \
     LAGRAPH_FREE (P) ;          \
-    LAGRAPH_FREE (D) ;
+    LAGRAPH_FREE (D) ;          \
+    LAGRAPH_FREE(degree);       \
+}
 
 // TODO:
 // currently only pattern matrices are supported
@@ -60,7 +63,7 @@
 GrB_Info LAGraph_reorder_vertices // reorder vertices according to their degree
 (
     GrB_Matrix *Chandle,         // output matrix
-    GrB_Index *mapping,          // mapping from old vertices to new vertices
+    GrB_Index **mapping,         // mapping from old vertices to new vertices
                                  // (unused if NULL)
     GrB_Matrix A,                // input matrix
     bool ascending               // sort in ascending order
@@ -70,14 +73,10 @@ GrB_Info LAGraph_reorder_vertices // reorder vertices according to their degree
     // check inputs
     //--------------------------------------------------------------------------
 
-    GrB_Info info ;
-
     GrB_Type type;
     GrB_Index n ;
-    GrB_Vector degrees_vec = NULL;
-    GrB_Index degrees_nvals ;
     GrB_Index* degree ;
-    GrB_Matrix C = NULL, L = NULL, U = NULL, T = NULL ;
+    GrB_Matrix S = NULL, L = NULL, U = NULL, T = NULL ;
     int64_t *P = NULL, *D = NULL, *W0 = NULL, *W1 = NULL ;
 
     LAGr_Matrix_type (&type, A)
@@ -85,11 +84,11 @@ GrB_Info LAGraph_reorder_vertices // reorder vertices according to their degree
 
     if (type != GrB_BOOL)
     {
-        LAGraph_pattern(&C, A, GrB_BOOL);
+        LAGraph_pattern(&S, A, GrB_BOOL);
     }
     else
     {
-        C = A;
+        S = A;
     }
 
     GrB_Vector X = NULL, Dv = NULL ;
@@ -99,12 +98,16 @@ GrB_Info LAGraph_reorder_vertices // reorder vertices according to their degree
     LAGr_assign (X, NULL, NULL, 0, GrB_ALL, n, NULL) ;
     LAGr_assign (Dv, NULL, NULL, 0, GrB_ALL, n, NULL) ;
     LAGr_vxm (Dv, NULL, GrB_PLUS_INT64, GxB_PLUS_PAIR_INT64, X, A, NULL) ;
-    GrB_free (&X) ;
+    LAGr_free (&X) ;
     // GxB_print (A, 2) ;
     // GxB_print (D, 2) ;
-    GrB_free (&X) ;
+    LAGr_free (&X) ;
     GrB_Index n2, nvals2 ;
-    LAGr_Vector_export (&Dv, &type, &n2, &nvals2, &Di, (void **) &degree, NULL) ;
+    {
+        GrB_Type type2;
+        LAGr_Vector_export (&Dv, &type2, &n2, &nvals2, &Di, (void **) &degree, NULL) ;
+    }
+    LAGr_free (&Dv);
     if (n != n2 || n != nvals2) { printf ("??\n") ; abort ( ) ; }
     LAGRAPH_FREE (Di) ;
 
@@ -150,12 +153,20 @@ GrB_Info LAGraph_reorder_vertices // reorder vertices according to their degree
 
     GB_msort_2 (D, P, W0, W1, n, nthreads) ;
 
-    // T = A (P,P)
+    // T = S (P,P)
     LAGr_Matrix_new (&T, type, n, n) ;
-    LAGr_extract (T, NULL, NULL, C, P, n, P, n, NULL) ;
+    LAGr_extract (T, NULL, NULL, S, P, n, P, n, NULL) ;
 
-    mapping = P ;
+    (*mapping) = P ;
+    P = NULL;
     (*Chandle) = T ;
+    T = NULL;
 
+    // the original matrix A was used as S, do not free
+    if (type == GrB_BOOL)
+    {
+        S = NULL;
+    }
+    LAGRAPH_FREE_ALL
     return (GrB_SUCCESS) ;
 }

@@ -1379,7 +1379,7 @@ GrB_Info LAGraph_Matrix_extract_keep_dimensions // extract submatrix but keep
 GrB_Info LAGraph_reorder_vertices // reorder vertices according to their degree
 (
     GrB_Matrix *Chandle,         // output matrix
-    GrB_Index *mapping,          // mapping from old vertices to new vertices
+    GrB_Index **mapping,         // mapping from old vertices to new vertices
                                  // (unused if NULL)
     GrB_Matrix A,                // input matrix
     bool ascending               // sort in ascending order
