@@ -43,6 +43,35 @@
 
 #include "LAGraph.h"
 
+uint64_t extract(const GrB_Matrix A, const GrB_Index i, const GrB_Index j) {
+    uint64_t x;
+    GrB_Info info = GrB_Matrix_extractElement(&x, A, i, j);
+    if (info == GrB_NO_VALUE) {
+        return -1;
+    }
+    return x;
+}
+
+void print_matrix(const GrB_Matrix A) {
+    GrB_Index nrows, ncols;
+    GrB_Matrix_nrows(&nrows, A);
+    GrB_Matrix_ncols(&ncols, A);
+    for (GrB_Index i = 0; i < nrows; i++) {
+        printf("%4ld:", i);
+        for (GrB_Index j = 0; j < ncols; j++) {
+            uint64_t val = extract(A, i, j);
+            if (val == -1) {
+                printf("     ");
+            } else {
+                printf(" %4ld", val);
+            }
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+
 #define LAGRAPH_FREE_ALL                            \
 {                                                   \
     GrB_free (&A) ;                                 \
@@ -89,61 +118,14 @@ int main (int argc, char **argv)
     GrB_Index n;
     GrB_Matrix_nrows(&n, A);
 
-    for (GrB_Index k = 2; k <= 2; k++) {
-        // select every kth vertex in the graph
-        GrB_Index nv = n / k;
+    GrB_Matrix S = NULL;
+    LAGraph_pattern(&S, A, GrB_NULL);
 
-        //--------------------------------------------------------------------------
-        // extract matrix while keeping the dimensions
-        // - with Vsparse: multiply matrix from left and right with diagm(Vsparse)
-        // - with Vdense: use select operator
-        //--------------------------------------------------------------------------
-
-        #define NTRIALS 7
-        int nthread_list[NTRIALS] = {1, 2, 4, 8, 16, 32, 64};
-
-        for (int trial = 0; trial < NTRIALS; trial++) {
-            int nthreads = nthread_list[trial];
-            if (nthreads > nthreads_max) break;
-            LAGraph_set_nthreads(nthreads);
-
-            GrB_Matrix C = NULL;
-
-            double tic[2];
-            LAGraph_tic(tic);
-            GrB_Index *Vsparse = LAGraph_malloc(nv, sizeof(GrB_Index));
-            for (int i = 0; i < nv; i++) {
-                Vsparse[i] = k * i;
-            }
-            LAGRAPH_OK(LAGraph_Matrix_extract_keep_dimensions(&C, A, Vsparse, NULL, nv));
-            LAGRAPH_FREE(Vsparse);
-            double time = LAGraph_toc(tic);
-            printf("Vsparse\t%ld\t%d\t%.2f\n", k, nthreads, time);
-
-            LAGRAPH_FREE(C);
-        }
-
-        for (int trial = 0; trial < NTRIALS; trial++) {
-            int nthreads = nthread_list[trial];
-            if (nthreads > nthreads_max) break;
-            LAGraph_set_nthreads(nthreads);
-
-            GrB_Matrix C = NULL;
-
-            double tic[2];
-            LAGraph_tic(tic);
-            bool *Vdense = LAGraph_calloc(nv, sizeof(bool));
-            for (int i = 0; i < nv; i++) {
-                Vdense[i] = true;
-            }
-            LAGRAPH_OK(LAGraph_Matrix_extract_keep_dimensions(&C, A, NULL, Vdense, nv));
-            LAGRAPH_FREE(Vdense);
-            double time = LAGraph_toc(tic);
-            printf("Vdense\t%ld\t%d\t%.2f\n", k, nthreads, time);
-
-            LAGRAPH_FREE(C);
-        }
-    }
+//    GxB_print(S, GxB_COMPLETE);
+    print_matrix(S);
+    LAGraph_reorder_vertices(&C, NULL, S, false);
+    print_matrix(C);
+//    GxB_print(C, GxB_COMPLETE);
 
     LAGRAPH_FREE_ALL ;
     LAGraph_finalize ( ) ;

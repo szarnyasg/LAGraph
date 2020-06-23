@@ -1376,4 +1376,34 @@ GrB_Info LAGraph_Matrix_extract_keep_dimensions // extract submatrix but keep
     GrB_Index nv                 // number of vertex indices
 ) ;
 
+GrB_Info LAGraph_reorder_vertices // reorder vertices according to their degree
+(
+    GrB_Matrix *Chandle,         // output matrix
+    GrB_Index *mapping,          // mapping from old vertices to new vertices
+                                 // (unused if NULL)
+    GrB_Matrix A,                // input matrix
+    bool ascending               // sort in ascending order
+) ;
+
+GrB_Info LAGraph_eye             // create identity matrix
+(
+    GrB_Matrix *Chandle,         // output matrix
+    const GrB_Index n            // size of the matrix
+) ;
+
+GrB_Info LAGraph_diag            // create diagonal matrix from vector
+(
+    GrB_Matrix *A,               // output matrix
+    GrB_Vector v,                // input vector of values (unused if NULL)
+    uint64_t* values,            // input array of values (unused if NULL)
+    GrB_Index n_values           // number of input elements (unused if NULL)
+) ;
+
+GrB_Info LAGraph_invdiag         // create vector from diagonal elements of matrix
+(
+    GrB_Vector *v_handle,        // vector to extract the results to
+    bool diagonal_only,          // set to true if the matrix only has diagonal elements
+    GrB_Matrix A                 // input matrix
+) ;
+
 #endif
