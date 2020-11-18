@@ -18,7 +18,10 @@ JOBS ?= 1
 
 # build and run test
 default: compile
-	./build/dense_relabel_test
+	./build/dense_relabel_test remap /home/szarnyasg/graphs/example-directed.{v,e}
+	./build/dense_relabel_test noremap /home/szarnyasg/graphs/example-directed.{v,e}
+	./build/dense_relabel_test remap /home/szarnyasg/graphs/datagen-7_5-fb.{v,e}
+	./build/dense_relabel_test noremap /home/szarnyasg/graphs/datagen-7_5-fb.{v,e}
 
 # build test
 compile:

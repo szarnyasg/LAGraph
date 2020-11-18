@@ -45,13 +45,7 @@
 
 #define LAGRAPH_FREE_ALL            \
 {                                   \
-    GrB_free (&Id2index) ;          \
-    GrB_free (&Index2id) ;          \
     GrB_free (&id2index) ;          \
-    GrB_free (&id_vec) ;            \
-    GrB_free (&index_vec) ;         \
-    GrB_free (&ref_id_vec) ;        \
-    GrB_free (&ref_index_vec) ;     \
 }
 
 #define ASSERT_TRUE(expr)                                   \
@@ -64,87 +58,121 @@
     }                                                       \
 }
 
+uint64_t count_lines(const char* filepath) {
+    uint64_t k = 0;
+    char c;
+    FILE* f = fopen(filepath, "r");
+    while ((c = fgetc(f)) != EOF) {
+        if (c == '\n') {
+            k++;
+        }
+    }
+    fclose(f);
+    return k;
+}
 
-int main(void) {
+int main(int argc, char** argv) {
 
     //--------------------------------------------------------------------------
     // initialize LAGraph and GraphBLAS
     //--------------------------------------------------------------------------
 
-    GrB_Matrix Id2index = NULL;
-    GrB_Matrix Index2id = NULL;
     GrB_Vector id2index = NULL;
-    GrB_Vector id_vec = NULL;
-    GrB_Vector index_vec = NULL;
-    GrB_Vector ref_id_vec = NULL;
-    GrB_Vector ref_index_vec = NULL;
 
     LAGRAPH_TRY_CATCH (LAGraph_init());
+    
+    bool remap = (strcmp (argv [1], "remap") == 0);
 
-    // prepare array of IDs
-    const GrB_Index big_id = 1ULL << 48;
-    const GrB_Index index_of_big_id = 2;
-    const GrB_Index identifiers[] = {42, 0, big_id, 1};
-    const GrB_Index nids = sizeof(identifiers) / sizeof(identifiers[0]);
+    uint64_t n = count_lines(argv[2]);
+    uint64_t m = count_lines(argv[3]);
 
-    // build mappings
+    FILE* fv = fopen(argv[2], "r");
+    FILE* fe = fopen(argv[3], "r");
+
+    GrB_Index* nodes = malloc(n * sizeof(GrB_Index));
+    GrB_Index* srcs = malloc(m * sizeof(GrB_Index));
+    GrB_Index* trgs = malloc(m * sizeof(GrB_Index));
+    uint64_t * X = malloc(m * sizeof(uint64_t));
+
+    // printf("vertices\n");
+    // printf("================\n");
+
+    GrB_Index node;
+    GrB_Index i;
+
+    i = 0;
+    GrB_Index max = 0;
+    while (fscanf (fv, "%ld\n", &node) != EOF)
+    {
+        // printf("%ld\n", node);
+        nodes[i] = node;
+        if (node > max) {
+            max = node;
+        }
+        i++;
+    }
+
+    // printf("================\n");
+    
+    printf("nodes: %ld\n", n);
+    printf("edges: %ld\n", m);
+    printf("max: %ld\n", max);
+    // printf("edges\n");
+    // printf("================\n");
+
+    GrB_Index src, trg;
+    GrB_Index src_remapped, trg_remapped;
+    double w;
+
+    double tic1[2];
+    LAGraph_tic(tic1);
+
     GrB_Index id_dimension;
-    LAGRAPH_TRY_CATCH(LAGraph_dense_relabel(&Id2index, &Index2id, &id2index, identifiers, nids, &id_dimension));
-
-#ifndef NDEBUG
-    LAGRAPH_TRY_CATCH(GxB_fprint(Id2index, GxB_COMPLETE, stdout));
-    LAGRAPH_TRY_CATCH(GxB_fprint(Index2id, GxB_COMPLETE, stdout));
-    LAGRAPH_TRY_CATCH(GxB_fprint(id2index, GxB_COMPLETE, stdout));
-#endif
-
-    //--------------------------------------------------------------------------
-    // use id2index vector (original_id -> index)
-    //--------------------------------------------------------------------------
-    GrB_Index index = 0;
-    LAGr_Vector_extractElement(&index, id2index, big_id);
-    ASSERT_TRUE(index_of_big_id == index);
-
-    //--------------------------------------------------------------------------
-    // use Id2index (original_id -> index)
-    //--------------------------------------------------------------------------
-    LAGr_Vector_new(&id_vec, GrB_BOOL, id_dimension);
-    LAGr_Vector_setElement(id_vec, true, big_id);
-#ifndef NDEBUG
-    LAGRAPH_TRY_CATCH(GxB_fprint(id_vec, GxB_COMPLETE, stdout));
-#endif
-
-    LAGr_Vector_new(&index_vec, GrB_BOOL, nids);
-    LAGr_vxm(index_vec, GrB_NULL, GrB_NULL, GxB_LOR_LAND_BOOL, id_vec, Id2index, GrB_NULL);
-#ifndef NDEBUG
-    LAGRAPH_TRY_CATCH(GxB_fprint(index_vec, GxB_COMPLETE, stdout));
-#endif
-
-    // test
-    LAGr_Vector_new(&ref_index_vec, GrB_BOOL, nids);
-    LAGr_Vector_setElement(ref_index_vec, true, index_of_big_id);
-    {
-        bool isequal = false;
-        LAGRAPH_TRY_CATCH(LAGraph_Vector_isequal(&isequal, index_vec, ref_index_vec, GrB_NULL));
-        ASSERT_TRUE(isequal);
+    if (remap) {
+        LAGRAPH_TRY_CATCH(LAGraph_dense_relabel(NULL, NULL, &id2index, nodes, n, NULL));
     }
 
-    //--------------------------------------------------------------------------
-    // use Index2id (index -> original_id)
-    //--------------------------------------------------------------------------
-    LAGr_Vector_clear(id_vec);
-    LAGr_vxm(id_vec, GrB_NULL, GrB_NULL, GxB_LOR_LAND_BOOL, index_vec, Index2id, GrB_NULL);
-#ifndef NDEBUG
-    LAGRAPH_TRY_CATCH(GxB_fprint(id_vec, GxB_COMPLETE, stdout));
-#endif
-
-    // test
-    LAGr_Vector_new(&ref_id_vec, GrB_BOOL, id_dimension);
-    LAGr_Vector_setElement(ref_id_vec, true, big_id);
+    i = 0;
+    while (fscanf (fe, "%ld %ld %lf\n", &src, &trg, &w) != EOF)
     {
-        bool isequal = false;
-        LAGRAPH_TRY_CATCH(LAGraph_Vector_isequal(&isequal, id_vec, ref_id_vec, GrB_NULL));
-        ASSERT_TRUE(isequal);
+        // printf("%ld: %d, %d\n", i, src, trg);
+        if (remap) {
+            LAGr_Vector_extractElement(&src_remapped, id2index, src);
+            LAGr_Vector_extractElement(&trg_remapped, id2index, trg);
+            srcs[i] = src_remapped;
+            trgs[i] = trg_remapped;
+        } else {
+            srcs[i] = src;
+            trgs[i] = trg;
+        }
+
+        X[i] = 1;
+        i++;
     }
+
+    GrB_Matrix A = NULL;
+    if (remap) {
+        GrB_Matrix_new(&A, GrB_UINT64, n, n);
+    } else {
+        GrB_Matrix_new(&A, GrB_UINT64, max+1, max+1);
+    }
+    GrB_Matrix_build(A, srcs, trgs, X, m, GrB_PLUS_UINT64);
+    
+    //GrB_Matrix_type(&type, )
+    GxB_print(A, GxB_SUMMARY);
+
+    double t1 = LAGraph_toc(tic1);
+
+    double tic2[2];
+    LAGraph_tic(tic2);
+    GrB_Index ntri;
+    LAGraph_tricount(&ntri, 4, 0, NULL, A);
+    double t2 = LAGraph_toc(tic2);
+
+    printf("remapping: %s\n", remap ? "true" : "false");
+    printf("ntri: %d\n", ntri);
+    printf("loading edges:   %12.6g sec\n", t1);
+    printf("processing time: %12.6g sec\n", t2);
 
     LAGRAPH_FREE_ALL;
     LAGraph_finalize();
