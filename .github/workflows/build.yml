@@ -2,18 +2,37 @@ name: LAGraph CI
 
 on: [push, pull_request]
 
+defaults:
+  strategy:
+    matrix:
+      config:
+      - {os: ubuntu-20.04, grb_version: 4.0.3, conda_system: linux, conda_grb_package_hash: h9c3ff4c}
+      - {os: macos-11,     grb_version: 4.0.3, conda_system: mac,   conda_grb_package_hash: h046ec9c}
+
 jobs:
   linux:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        config:
-        - {a: a12, b: b34}
-        - {a: a56, b: b78}
     steps:
     - name: Checkout
       uses: actions/checkout@v2.0.0
     - name: Build project
       run: |
-        echo ${{ matrix.config.a }}
-        echo ${{ matrix.config.b }}
+        pushd .
+        # grab GraphBLAS binaries
+        mkdir graphblas-binaries
+        cd graphblas-binaries
+        wget --quiet https://anaconda.org/conda-forge/graphblas/${{ matrix.config.grb_version }}/download/${{ matrix.config.conda_system }}-64/graphblas-${{ matrix.config.grb_version }}-${{ matrix.config.conda_grb_package_hash }}_0.tar.bz2
+        tar xf graphblas-${{ matrix.config.grb_version }}-${{ matrix.config.conda_grb_package_hash }}_0.tar.bz2
+        export GRAPHBLAS_INCLUDE_DIR=`pwd`/include
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+          export GRAPHBLAS_LIBRARY=`pwd`/lib/libgraphblas.so
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+          export GRAPHBLAS_LIBRARY=`pwd`/lib/libgraphblas.dylib
+        fi
+        popd
+        # build and test LAGraph
+        mkdir build
+        cd build
+        CC=gcc cmake .. -DGRAPHBLAS_INCLUDE_DIR=${GRAPHBLAS_INCLUDE_DIR} -DGRAPHBLAS_LIBRARY=${GRAPHBLAS_LIBRARY}
+        JOBS=2 make
+  
