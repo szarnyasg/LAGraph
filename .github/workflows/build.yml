@@ -15,5 +15,5 @@ jobs:
       uses: actions/checkout@v2.0.0
     - name: Build project
       run: |
-        echo {{ matrix.a }}
-        echo {{ matrix.b }}
+        echo {{ matrix.cfg.a }}
+        echo {{ matrix.cfg.b }}
