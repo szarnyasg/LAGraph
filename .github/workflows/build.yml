@@ -13,5 +13,5 @@ jobs:
       uses: actions/checkout@v2.0.0
     - name: Build project
       run: |
-        echo {{ matrix.node.a }}
-        echo {{ matrix.node.b }}
+        echo {{ matrix.node }}
+        echo {{ matrix.node }}
