@@ -7,12 +7,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [{a: 'a12', b: 'b34'}, {a: 'c56', b: '78'}]
+        - {a: 'a12', b: 'b34'}
+        - {a: 'a56', b: 'b78'}]
     steps:
     - name: Checkout
       uses: actions/checkout@v2.0.0
     - name: Build project
       run: |
-        echo {{ matrix.node }}
-        echo {{ matrix.node['a'] }}
-        echo {{ matrix.node['b'] }}
+        echo {{ matrix.a }}
+        echo {{ matrix.b }}
