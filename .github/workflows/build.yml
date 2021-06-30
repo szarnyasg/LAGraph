@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cfg:
+        config:
         - {a: a12, b: b34}
         - {a: a56, b: b78}
     steps:
@@ -15,5 +15,5 @@ jobs:
       uses: actions/checkout@v2.0.0
     - name: Build project
       run: |
-        echo ${{ matrix.cfg.a }}
-        echo ${{ matrix.cfg.b }}
+        echo ${{ matrix.config.a }}
+        echo ${{ matrix.config.b }}
