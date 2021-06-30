@@ -7,8 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        - {a: 'a12', b: 'b34'}
-        - {a: 'a56', b: 'b78'}]
+        cfg:
+        - {a: a12, b: b34}
+        - {a: a56, b: b78}
     steps:
     - name: Checkout
       uses: actions/checkout@v2.0.0
