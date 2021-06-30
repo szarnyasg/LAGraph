@@ -2,13 +2,12 @@ name: LAGraph CI
 
 on: [push, pull_request]
 
-defaults:
-  strategy:
-    matrix:
-      node: [{a: 'a12', b: 'b34'}, {a: 'c56', b: '78'}]
 jobs:
   linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [{a: 'a12', b: 'b34'}, {a: 'c56', b: '78'}]
     steps:
     - name: Checkout
       uses: actions/checkout@v2.0.0
