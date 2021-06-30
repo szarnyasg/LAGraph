@@ -14,4 +14,5 @@ jobs:
     - name: Build project
       run: |
         echo {{ matrix.node }}
-        echo {{ matrix.node }}
+        echo {{ matrix.node['a'] }}
+        echo {{ matrix.node['b'] }}
